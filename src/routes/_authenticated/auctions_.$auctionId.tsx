@@ -814,7 +814,6 @@ function BidSlabLadder({
               {/* labels row */}
               <div className={`mt-1 flex flex-col ${isLast ? "items-center" : "items-start"}`}>
                 <span className="text-xs font-semibold tabular-nums">{stop.label}</span>
-                {stop.sub && <span className="text-[10px] text-muted-foreground">{stop.sub}</span>}
               </div>
             </div>
           );
