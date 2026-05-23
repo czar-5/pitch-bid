@@ -308,31 +308,6 @@ function LobbyRoom({
   const joinedCount = teams.filter((t) => joinedTeamIds.has(t.team?.id)).length;
   const allJoined = totalTeams > 0 && joinedCount === totalTeams;
 
-  // Roster: players already sold to each team in this auction
-  const rosterQ = useQuery({
-    queryKey: ["auction-team-roster", auctionId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("auction_players")
-        .select("sold_team_id,sold_price,player:players(first_name,last_name,display_name,player_role,photo_url)")
-        .eq("auction_id", auctionId)
-        .eq("status", "sold");
-      if (error) throw error;
-      return data;
-    },
-  });
-
-  const rosterByTeam = useMemo(() => {
-    const map = new Map<string, Array<any>>();
-    for (const r of rosterQ.data ?? []) {
-      if (!r.sold_team_id) continue;
-      const arr = map.get(r.sold_team_id) ?? [];
-      arr.push(r);
-      map.set(r.sold_team_id, arr);
-    }
-    return map;
-  }, [rosterQ.data]);
-
   const goLive = useMutation({
     mutationFn: async () => {
       const { error } = await supabase.rpc("go_live_auction", { _auction_id: auctionId });
