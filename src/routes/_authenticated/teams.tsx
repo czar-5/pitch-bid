@@ -15,7 +15,10 @@ function TeamsPage() {
   const { data, isLoading } = useQuery({
     queryKey: ["teams"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("teams").select("id,name,logo_url,primary_color").order("name");
+      const { data, error } = await supabase
+        .from("teams")
+        .select("id,name,logo_url,primary_color")
+        .order("name");
       if (error) throw error;
       return data;
     },
@@ -24,10 +27,22 @@ function TeamsPage() {
     queryKey: ["my-managed-teams", user?.id],
     enabled: !!user?.id,
     queryFn: async () => {
+      const candidateUserIds = new Set<string>([user!.id]);
+      const email = user!.email?.trim().toLowerCase();
+
+      if (email) {
+        const { data: profiles, error: profileError } = await supabase
+          .from("profiles")
+          .select("id")
+          .eq("email", email);
+        if (profileError) throw profileError;
+        profiles?.forEach((profile) => candidateUserIds.add(profile.id));
+      }
+
       const { data, error } = await supabase
         .from("team_members")
         .select("team_id")
-        .eq("user_id", user!.id)
+        .in("user_id", Array.from(candidateUserIds))
         .eq("membership_role", "manager");
       if (error) throw error;
       return new Set((data ?? []).map((r) => r.team_id));
@@ -43,7 +58,13 @@ function TeamsPage() {
           <p className="text-sm text-muted-foreground">Master list of teams.</p>
         </div>
         {isAdmin && (
-          <TeamFormDialog trigger={<Button><Plus className="h-4 w-4 mr-1" /> Create Team</Button>} />
+          <TeamFormDialog
+            trigger={
+              <Button>
+                <Plus className="h-4 w-4 mr-1" /> Create Team
+              </Button>
+            }
+          />
         )}
       </div>
 
@@ -70,9 +91,15 @@ function TeamsPage() {
                 style={{ background: t.primary_color ?? undefined }}
               >
                 {t.logo_url ? (
-                  <img src={t.logo_url} alt={t.name} className="h-full w-full rounded-lg object-cover" />
+                  <img
+                    src={t.logo_url}
+                    alt={t.name}
+                    className="h-full w-full rounded-lg object-cover"
+                  />
                 ) : (
-                  <span className="text-primary-foreground">{t.name.slice(0, 2).toUpperCase()}</span>
+                  <span className="text-primary-foreground">
+                    {t.name.slice(0, 2).toUpperCase()}
+                  </span>
                 )}
               </div>
               <span className="font-semibold truncate">{t.name}</span>
