@@ -37,13 +37,15 @@ interface TeamFormDialogProps {
   trigger: React.ReactNode;
   team?: { id: string; name: string; primary_color: string | null; logo_url: string | null };
   onSuccess?: () => void;
+  /** When true, restrict editing to logo + co-managers (for team managers). */
+  restricted?: boolean;
 }
 
-export function TeamFormDialog({ trigger, team, onSuccess }: TeamFormDialogProps) {
+export function TeamFormDialog({ trigger, team, onSuccess, restricted = false }: TeamFormDialogProps) {
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState<PendingMember[]>([]);
   const [newEmail, setNewEmail] = useState("");
-  const [newRole, setNewRole] = useState<MembershipRole>("manager");
+  const [newRole, setNewRole] = useState<MembershipRole>(restricted ? "co_manager" : "manager");
   const [emailError, setEmailError] = useState<string | null>(null);
   const qc = useQueryClient();
   const form = useForm<FormValues>({
@@ -64,10 +66,10 @@ export function TeamFormDialog({ trigger, team, onSuccess }: TeamFormDialogProps
       });
       setPending([]);
       setNewEmail("");
-      setNewRole("manager");
+      setNewRole(restricted ? "co_manager" : "manager");
       setEmailError(null);
     }
-  }, [open, team, form]);
+  }, [open, team, form, restricted]);
 
   // Load existing members when editing
   const membersQ = useQuery({
@@ -186,7 +188,8 @@ export function TeamFormDialog({ trigger, team, onSuccess }: TeamFormDialogProps
       }
 
       if (team) {
-        const { error } = await supabase.from("teams").update(values).eq("id", team.id);
+        const updatePayload = restricted ? { logo_url: values.logo_url } : values;
+        const { error } = await supabase.from("teams").update(updatePayload).eq("id", team.id);
         if (error) throw error;
         for (const m of extraPending) {
           const userId = await resolveEmailToUserId(m.email);
@@ -237,37 +240,41 @@ export function TeamFormDialog({ trigger, team, onSuccess }: TeamFormDialogProps
       <DialogTrigger asChild>{trigger}</DialogTrigger>
       <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{team ? "Edit team" : "Create team"}</DialogTitle>
+          <DialogTitle>{team ? (restricted ? "Edit your team" : "Edit team") : "Create team"}</DialogTitle>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Name</FormLabel>
-                  <FormControl><Input placeholder="Mumbai Indians" {...field} /></FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="primary_color"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Primary color</FormLabel>
-                  <FormControl>
-                    <div className="flex gap-2">
-                      <input type="color" value={field.value} onChange={(e) => field.onChange(e.target.value)} className="h-10 w-14 rounded-md border border-border bg-transparent cursor-pointer" />
-                      <Input value={field.value} onChange={field.onChange} className="font-mono" maxLength={7} />
-                    </div>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            {!restricted && (
+              <>
+                <FormField
+                  control={form.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Name</FormLabel>
+                      <FormControl><Input placeholder="Mumbai Indians" {...field} /></FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="primary_color"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Primary color</FormLabel>
+                      <FormControl>
+                        <div className="flex gap-2">
+                          <input type="color" value={field.value} onChange={(e) => field.onChange(e.target.value)} className="h-10 w-14 rounded-md border border-border bg-transparent cursor-pointer" />
+                          <Input value={field.value} onChange={field.onChange} className="font-mono" maxLength={7} />
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </>
+            )}
             <FormField
               control={form.control}
               name="logo_url"
@@ -284,7 +291,7 @@ export function TeamFormDialog({ trigger, team, onSuccess }: TeamFormDialogProps
 
             <div className="space-y-2 pt-2 border-t border-border">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Managers</span>
+                <span className="text-sm font-medium">{restricted ? "Co-managers" : "Managers"}</span>
                 <span className="text-xs text-muted-foreground">
                   Roles are granted automatically
                 </span>
@@ -296,7 +303,7 @@ export function TeamFormDialog({ trigger, team, onSuccess }: TeamFormDialogProps
                   {membersQ.isLoading && (
                     <p className="text-xs text-muted-foreground">Loading…</p>
                   )}
-                  {membersQ.data?.map((m) => (
+                  {membersQ.data?.filter((m) => !restricted || m.membership_role === "co_manager").map((m) => (
                     <div key={m.id} className="flex items-center gap-2 rounded-md border border-border bg-card px-2 py-1.5">
                       <div className="h-7 w-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-semibold text-xs">
                         {(m.profile?.name ?? m.profile?.email ?? "U").charAt(0).toUpperCase()}
@@ -315,7 +322,7 @@ export function TeamFormDialog({ trigger, team, onSuccess }: TeamFormDialogProps
                     </div>
                   ))}
                   {membersQ.data && membersQ.data.length === 0 && (
-                    <p className="text-xs text-muted-foreground">No managers yet.</p>
+                    <p className="text-xs text-muted-foreground">{restricted ? "No co-managers yet." : "No managers yet."}</p>
                   )}
                 </div>
               )}
@@ -347,13 +354,17 @@ export function TeamFormDialog({ trigger, team, onSuccess }: TeamFormDialogProps
                   onChange={(e) => { setNewEmail(e.target.value); if (emailError) setEmailError(null); }}
                   className="flex-1"
                 />
-                <Select value={newRole} onValueChange={(v) => setNewRole(v as MembershipRole)}>
-                  <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="manager">Manager</SelectItem>
-                    <SelectItem value="co_manager">Co-manager</SelectItem>
-                  </SelectContent>
-                </Select>
+                {restricted ? (
+                  <span className="text-xs rounded-full bg-muted px-3 py-1.5 capitalize whitespace-nowrap">Co-manager</span>
+                ) : (
+                  <Select value={newRole} onValueChange={(v) => setNewRole(v as MembershipRole)}>
+                    <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="manager">Manager</SelectItem>
+                      <SelectItem value="co_manager">Co-manager</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
                 <Button
                   type="button"
                   size="icon"
