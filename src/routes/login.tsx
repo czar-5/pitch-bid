@@ -116,10 +116,6 @@ function LoginPage() {
         <Button variant="outline" className="w-full" onClick={google}>
           Continue with Google
         </Button>
-
-        <p className="mt-6 text-center text-xs text-muted-foreground">
-          <Link to="/auctions" className="underline">Browse as guest</Link>
-        </p>
       </div>
     </div>
   );
