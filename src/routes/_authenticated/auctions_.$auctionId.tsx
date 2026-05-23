@@ -110,6 +110,12 @@ function AuctionDetail() {
   const isLive = status === "live";
   const isLobby = status === "lobby";
   const currentAp = playersQ.data?.find((p) => p.id === a.current_player_id) ?? null;
+  const lastFinalizedAp = (a as { last_finalized_player_id?: string | null }).last_finalized_player_id
+    ? playersQ.data?.find((p) => p.id === (a as { last_finalized_player_id?: string | null }).last_finalized_player_id) ?? null
+    : null;
+  // While a player is on the block during a live auction, hide the surrounding
+  // chrome (banner, teams grid, player pool) so bidders focus on the round.
+  const minimal = isLive && !!currentAp;
 
   return (
     <div className="space-y-6">
@@ -117,6 +123,7 @@ function AuctionDetail() {
         <ArrowLeft className="h-4 w-4 mr-1" /> All auctions
       </Button>
 
+      {!minimal && (
       <div className="rounded-xl border border-border bg-card p-6">
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -175,6 +182,7 @@ function AuctionDetail() {
           </div>
         )}
       </div>
+      )}
 
       {isLobby && (
         <LobbyRoom
@@ -190,12 +198,14 @@ function AuctionDetail() {
           auctionId={auctionId}
           auction={a}
           currentAp={currentAp}
+          lastFinalizedAp={lastFinalizedAp}
           teams={teamsQ.data ?? []}
           isAdmin={isAdmin}
           userId={user?.id ?? null}
         />
       )}
 
+      {!minimal && (
       <section>
         <h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-3 flex items-center gap-2">
           <Users className="h-4 w-4" /> Teams ({teamsQ.data?.length ?? 0})
@@ -214,7 +224,9 @@ function AuctionDetail() {
           ))}
         </div>
       </section>
+      )}
 
+      {!minimal && (
       <section>
         <h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-3">
           Player pool ({playersQ.data?.length ?? 0})
@@ -233,6 +245,11 @@ function AuctionDetail() {
           ))}
         </div>
       </section>
+      )}
+
+      {isLive && !currentAp && lastFinalizedAp && (
+        <PreviousBidHistory auctionPlayerId={lastFinalizedAp.id} player={lastFinalizedAp.player} />
+      )}
     </div>
   );
 }
