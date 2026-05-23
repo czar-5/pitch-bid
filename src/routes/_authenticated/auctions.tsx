@@ -5,6 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Plus, Calendar, Users, Radio } from "lucide-react";
 import { format } from "date-fns";
+import { AuctionWizardDialog } from "@/components/admin/AuctionWizardDialog";
 
 export const Route = createFileRoute("/_authenticated/auctions")({
   component: AuctionsPage,
@@ -44,9 +45,7 @@ function AuctionsPage() {
           <p className="text-sm text-muted-foreground">Live and upcoming tournament auctions.</p>
         </div>
         {isAdmin && (
-          <Button disabled>
-            <Plus className="h-4 w-4 mr-1" /> Create Auction
-          </Button>
+          <AuctionWizardDialog trigger={<Button><Plus className="h-4 w-4 mr-1" /> Create Auction</Button>} />
         )}
       </div>
 
