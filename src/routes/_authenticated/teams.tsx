@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { Pencil, Plus } from "lucide-react";
 import { TeamFormDialog } from "@/components/admin/TeamFormDialog";
 
 export const Route = createFileRoute("/_authenticated/teams")({
@@ -42,24 +42,38 @@ function TeamsPage() {
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {data?.map((t) => (
-          <Link
+          <div
             key={t.id}
-            to="/teams/$teamId"
-            params={{ teamId: t.id }}
             className="flex items-center gap-3 rounded-xl border border-border bg-card p-4 transition hover:border-primary"
           >
-            <div
-              className="h-12 w-12 rounded-lg bg-muted flex items-center justify-center font-bold"
-              style={{ background: t.primary_color ?? undefined }}
+            <Link
+              to="/teams/$teamId"
+              params={{ teamId: t.id }}
+              className="flex items-center gap-3 flex-1 min-w-0"
             >
-              {t.logo_url ? (
-                <img src={t.logo_url} alt={t.name} className="h-full w-full rounded-lg object-cover" />
-              ) : (
-                <span className="text-primary-foreground">{t.name.slice(0, 2).toUpperCase()}</span>
-              )}
-            </div>
-            <span className="font-semibold">{t.name}</span>
-          </Link>
+              <div
+                className="h-12 w-12 rounded-lg bg-muted flex items-center justify-center font-bold shrink-0"
+                style={{ background: t.primary_color ?? undefined }}
+              >
+                {t.logo_url ? (
+                  <img src={t.logo_url} alt={t.name} className="h-full w-full rounded-lg object-cover" />
+                ) : (
+                  <span className="text-primary-foreground">{t.name.slice(0, 2).toUpperCase()}</span>
+                )}
+              </div>
+              <span className="font-semibold truncate">{t.name}</span>
+            </Link>
+            {isAdmin && (
+              <TeamFormDialog
+                team={t}
+                trigger={
+                  <Button variant="ghost" size="icon" aria-label={`Edit ${t.name}`}>
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                }
+              />
+            )}
+          </div>
         ))}
       </div>
     </div>
