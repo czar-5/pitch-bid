@@ -138,6 +138,7 @@ export type Database = {
           created_by: string | null
           current_player_id: string | null
           id: string
+          last_finalized_player_id: string | null
           name: string
           round_closure_seconds: number
           scheduled_at: string
@@ -152,6 +153,7 @@ export type Database = {
           created_by?: string | null
           current_player_id?: string | null
           id?: string
+          last_finalized_player_id?: string | null
           name: string
           round_closure_seconds?: number
           scheduled_at?: string
@@ -166,6 +168,7 @@ export type Database = {
           created_by?: string | null
           current_player_id?: string | null
           id?: string
+          last_finalized_player_id?: string | null
           name?: string
           round_closure_seconds?: number
           scheduled_at?: string
@@ -357,6 +360,7 @@ export type Database = {
     }
     Functions: {
       end_auction: { Args: { _auction_id: string }; Returns: undefined }
+      finalize_current: { Args: { _auction_id: string }; Returns: undefined }
       go_live_auction: { Args: { _auction_id: string }; Returns: undefined }
       has_role: {
         Args: {
