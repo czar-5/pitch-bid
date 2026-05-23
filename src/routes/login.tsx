@@ -1,4 +1,4 @@
-import { createFileRoute, useRouter, Link } from "@tanstack/react-router";
+import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
@@ -116,10 +116,6 @@ function LoginPage() {
         <Button variant="outline" className="w-full" onClick={google}>
           Continue with Google
         </Button>
-
-        <p className="mt-6 text-center text-xs text-muted-foreground">
-          <Link to="/auctions" className="underline">Browse as guest</Link>
-        </p>
       </div>
     </div>
   );
