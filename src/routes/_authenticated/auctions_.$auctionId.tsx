@@ -11,6 +11,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 export const Route = createFileRoute("/_authenticated/auctions_/$auctionId")({
   component: AuctionDetail,
@@ -319,6 +320,31 @@ function LobbyRoom({
   const joinedCount = teams.filter((t) => joinedTeamIds.has(t.team?.id)).length;
   const allJoined = totalTeams > 0 && joinedCount === totalTeams;
 
+  // Roster: players already sold to each team in this auction
+  const rosterQ = useQuery({
+    queryKey: ["auction-team-roster", auctionId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("auction_players")
+        .select("sold_team_id,sold_price,player:players(first_name,last_name,display_name,player_role,photo_url)")
+        .eq("auction_id", auctionId)
+        .eq("status", "sold");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const rosterByTeam = useMemo(() => {
+    const map = new Map<string, Array<any>>();
+    for (const r of rosterQ.data ?? []) {
+      if (!r.sold_team_id) continue;
+      const arr = map.get(r.sold_team_id) ?? [];
+      arr.push(r);
+      map.set(r.sold_team_id, arr);
+    }
+    return map;
+  }, [rosterQ.data]);
+
   const goLive = useMutation({
     mutationFn: async () => {
       const { error } = await supabase.rpc("go_live_auction", { _auction_id: auctionId });
@@ -351,30 +377,69 @@ function LobbyRoom({
         )}
       </div>
 
-      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2">
+      <Accordion type="single" collapsible className="space-y-2">
         {teams.map((at) => {
           const joined = joinedTeamIds.has(at.team?.id);
+          const roster = rosterByTeam.get(at.team?.id) ?? [];
           return (
-            <div
+            <AccordionItem
               key={at.id}
-              className={`rounded-lg border p-3 flex items-center gap-3 transition ${joined ? "border-primary bg-primary/5" : "border-border bg-card"}`}
+              value={at.id}
+              className={`rounded-lg border px-3 transition ${joined ? "border-primary bg-primary/5" : "border-border bg-card"}`}
             >
-              <div
-                className="h-9 w-9 rounded-lg bg-muted flex items-center justify-center text-xs font-bold overflow-hidden flex-shrink-0"
-                style={{ background: at.team?.primary_color ?? undefined }}
-              >
-                {at.team?.logo_url
-                  ? <img src={at.team.logo_url} alt="" className="h-full w-full object-cover" />
-                  : (at.team?.name as string)?.slice(0, 2).toUpperCase()}
-              </div>
-              <p className="flex-1 min-w-0 truncate font-medium text-sm">{at.team?.name}</p>
-              {joined
-                ? <CheckCircle2 className="h-5 w-5 text-primary" />
-                : <Circle className="h-5 w-5 text-muted-foreground/40" />}
-            </div>
+              <AccordionTrigger className="py-2.5 hover:no-underline">
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <div
+                    className="h-9 w-9 rounded-lg bg-muted flex items-center justify-center text-xs font-bold overflow-hidden flex-shrink-0"
+                    style={{ background: at.team?.primary_color ?? undefined }}
+                  >
+                    {at.team?.logo_url
+                      ? <img src={at.team.logo_url} alt="" className="h-full w-full object-cover" />
+                      : (at.team?.name as string)?.slice(0, 2).toUpperCase()}
+                  </div>
+                  <p className="flex-1 min-w-0 truncate font-medium text-sm text-left">{at.team?.name}</p>
+                  <span className="text-[10px] font-semibold text-muted-foreground rounded-full bg-muted px-2 py-0.5">
+                    {roster.length} {roster.length === 1 ? "player" : "players"}
+                  </span>
+                  {joined
+                    ? <CheckCircle2 className="h-5 w-5 text-primary" />
+                    : <Circle className="h-5 w-5 text-muted-foreground/40" />}
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="pb-3 pt-1">
+                <div className="flex items-center justify-between text-[11px] text-muted-foreground mb-2 px-1">
+                  <span>Budget remaining</span>
+                  <span className="font-semibold text-foreground">{(at.budget_remaining ?? 0).toLocaleString()}</span>
+                </div>
+                {roster.length === 0 ? (
+                  <p className="text-xs text-muted-foreground italic text-center py-3">No players yet</p>
+                ) : (
+                  <ul className="space-y-1">
+                    {roster.map((r: any, i: number) => {
+                      const p = r.player;
+                      const name = p?.display_name || `${p?.first_name ?? ""} ${p?.last_name ?? ""}`.trim();
+                      return (
+                        <li key={i} className="flex items-center gap-2 rounded-md bg-background/60 border border-border/50 px-2 py-1.5">
+                          <div className="h-7 w-7 rounded-full bg-muted overflow-hidden flex-shrink-0 flex items-center justify-center text-[10px] font-bold">
+                            {p?.photo_url
+                              ? <img src={p.photo_url} alt="" className="h-full w-full object-cover" />
+                              : name.slice(0, 2).toUpperCase()}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-medium truncate">{name}</p>
+                            <p className="text-[10px] text-muted-foreground capitalize">{p?.player_role}</p>
+                          </div>
+                          <span className="text-xs font-semibold tabular-nums">{(r.sold_price ?? 0).toLocaleString()}</span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </AccordionContent>
+            </AccordionItem>
           );
         })}
-      </div>
+      </Accordion>
 
       {isAdmin && (
         <div className="space-y-2">
