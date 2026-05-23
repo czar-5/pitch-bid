@@ -27,7 +27,7 @@ type Member = {
 
 function TeamDetail() {
   const { teamId } = Route.useParams();
-  const { isAdmin } = useAuth();
+  const { isAdmin, user } = useAuth();
   const navigate = useNavigate();
   const qc = useQueryClient();
 
@@ -78,6 +78,10 @@ function TeamDetail() {
   if (teamQ.isLoading) return <p className="text-muted-foreground">Loading…</p>;
   if (!teamQ.data) return <p className="text-muted-foreground">Team not found.</p>;
   const team = teamQ.data;
+  const isTeamManager = !!membersQ.data?.some(
+    (m) => m.user_id === user?.id && m.membership_role === "manager"
+  );
+  const canManageCoManagers = isAdmin || isTeamManager;
 
   return (
     <div className="space-y-6">
@@ -132,7 +136,7 @@ function TeamDetail() {
                 <p className="text-xs text-muted-foreground truncate">{m.profile?.email ?? m.user_id}</p>
               </div>
               <span className="text-xs rounded-full bg-muted px-2 py-0.5 capitalize">{m.membership_role.replace("_", "-")}</span>
-              {isAdmin && (
+              {(isAdmin || (isTeamManager && m.membership_role === "co_manager")) && (
                 <Button size="icon" variant="ghost" className="text-destructive h-7 w-7" onClick={() => removeMember.mutate(m.id)}>
                   <X className="h-4 w-4" />
                 </Button>
@@ -140,15 +144,21 @@ function TeamDetail() {
             </div>
           ))}
         </div>
-        {isAdmin && <AddMemberForm teamId={teamId} onAdded={() => qc.invalidateQueries({ queryKey: ["team-members", teamId] })} />}
+        {canManageCoManagers && (
+          <AddMemberForm
+            teamId={teamId}
+            allowManagerRole={isAdmin}
+            onAdded={() => qc.invalidateQueries({ queryKey: ["team-members", teamId] })}
+          />
+        )}
       </section>
     </div>
   );
 }
 
-function AddMemberForm({ teamId, onAdded }: { teamId: string; onAdded: () => void }) {
+function AddMemberForm({ teamId, allowManagerRole, onAdded }: { teamId: string; allowManagerRole: boolean; onAdded: () => void }) {
   const [email, setEmail] = useState("");
-  const [role, setRole] = useState<"manager" | "co_manager">("manager");
+  const [role, setRole] = useState<"manager" | "co_manager">(allowManagerRole ? "manager" : "co_manager");
   const add = useMutation({
     mutationFn: async () => {
       const trimmed = email.trim().toLowerCase();
@@ -159,19 +169,23 @@ function AddMemberForm({ teamId, onAdded }: { teamId: string; onAdded: () => voi
       const { error } = await supabase.from("team_members").insert({ team_id: teamId, user_id: profile.id, membership_role: role });
       if (error) throw error;
     },
-    onSuccess: () => { toast.success("Manager added"); setEmail(""); onAdded(); },
+    onSuccess: () => { toast.success(role === "manager" ? "Manager added" : "Co-manager added"); setEmail(""); onAdded(); },
     onError: (e: Error) => toast.error(e.message),
   });
   return (
     <div className="mt-4 rounded-lg border border-dashed border-border p-3 flex gap-2 items-center">
       <Input placeholder="user@email.com" value={email} onChange={(e) => setEmail(e.target.value)} className="flex-1" />
-      <Select value={role} onValueChange={(v) => setRole(v as "manager" | "co_manager")}>
-        <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
-        <SelectContent>
-          <SelectItem value="manager">Manager</SelectItem>
-          <SelectItem value="co_manager">Co-manager</SelectItem>
-        </SelectContent>
-      </Select>
+      {allowManagerRole ? (
+        <Select value={role} onValueChange={(v) => setRole(v as "manager" | "co_manager")}>
+          <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="manager">Manager</SelectItem>
+            <SelectItem value="co_manager">Co-manager</SelectItem>
+          </SelectContent>
+        </Select>
+      ) : (
+        <span className="text-xs rounded-full bg-muted px-3 py-1.5 capitalize">Co-manager</span>
+      )}
       <Button onClick={() => add.mutate()} disabled={add.isPending}>
         {add.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
       </Button>
