@@ -216,7 +216,7 @@ function LiveRoom({
     queryFn: async () => {
       const { data, error } = await supabase
         .from("bids")
-        .select("id,amount,created_at,team:teams(id,name,primary_color),bidder:profiles(id,name)")
+        .select("id,amount,created_at,team:teams(id,name,primary_color)")
         .eq("auction_player_id", currentAp.id)
         .order("amount", { ascending: false })
         .limit(10);
