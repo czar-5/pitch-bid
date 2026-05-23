@@ -27,7 +27,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { TeamFormDialog } from "@/components/admin/TeamFormDialog";
 
-export const Route = createFileRoute("/_authenticated/teams/$teamId")({
+export const Route = createFileRoute("/_authenticated/teams_/$teamId")({
   component: TeamDetail,
 });
 
