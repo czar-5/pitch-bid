@@ -1,18 +1,22 @@
 import { Link, Outlet, useRouter } from "@tanstack/react-router";
-import { Gavel, Users, UserRound, LogOut, Trophy } from "lucide-react";
+import { Gavel, Users, UserRound, LogOut, Trophy, ShieldCheck } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Toaster } from "@/components/ui/sonner";
 
-const nav = [
+const baseNav = [
   { to: "/auctions", label: "Auctions", icon: Gavel },
   { to: "/teams", label: "Teams", icon: Users },
   { to: "/players", label: "Players", icon: UserRound },
+] as const;
+const adminNav = [
+  { to: "/users", label: "Users", icon: ShieldCheck },
 ] as const;
 
 export function AppShell() {
   const { user, isAdmin, signOut } = useAuth();
   const router = useRouter();
+  const nav = isAdmin ? [...baseNav, ...adminNav] : baseNav;
   const initial = (user?.user_metadata?.name || user?.user_metadata?.full_name || user?.email || "U")
     .trim()
     .charAt(0)
@@ -70,7 +74,7 @@ export function AppShell() {
 
       {/* Mobile bottom nav */}
       <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-border bg-card/95 backdrop-blur md:hidden">
-        <div className="grid grid-cols-3">
+        <div className={isAdmin ? "grid grid-cols-4" : "grid grid-cols-3"}>
           {nav.map((n) => {
             const Icon = n.icon;
             return (
