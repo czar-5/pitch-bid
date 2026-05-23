@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { Plus, Calendar, Users, Radio, Trash2, Play } from "lucide-react";
+import { Plus, Calendar, Users, Radio, Trash2, Play, ArrowRight } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { AuctionWizardDialog } from "@/components/admin/AuctionWizardDialog";
@@ -151,6 +151,15 @@ function Section({
                   </AlertDialogContent>
                 </AlertDialog>
               </div>
+            )}
+            {tone === "live" && (
+              <Link
+                to="/auctions/$auctionId"
+                params={{ auctionId: a.id }}
+                className="mt-3 inline-flex w-full items-center justify-center gap-1 rounded-md bg-primary px-3 py-2 text-sm font-bold text-primary-foreground hover:bg-primary/90"
+              >
+                Enter live auction <ArrowRight className="h-4 w-4" />
+              </Link>
             )}
           </div>
         ))}
