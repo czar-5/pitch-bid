@@ -11,7 +11,7 @@ export const Route = createFileRoute("/_authenticated/teams")({
 });
 
 function TeamsPage() {
-  const { isAdmin } = useAuth();
+  const { isAdmin, user } = useAuth();
   const { data, isLoading } = useQuery({
     queryKey: ["teams"],
     queryFn: async () => {
@@ -20,6 +20,20 @@ function TeamsPage() {
       return data;
     },
   });
+  const managedQ = useQuery({
+    queryKey: ["my-managed-teams", user?.id],
+    enabled: !!user?.id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("team_members")
+        .select("team_id")
+        .eq("user_id", user!.id)
+        .eq("membership_role", "manager");
+      if (error) throw error;
+      return new Set((data ?? []).map((r) => r.team_id));
+    },
+  });
+  const managedIds = managedQ.data ?? new Set<string>();
 
   return (
     <div className="space-y-6">
@@ -63,9 +77,10 @@ function TeamsPage() {
               </div>
               <span className="font-semibold truncate">{t.name}</span>
             </Link>
-            {isAdmin && (
+            {(isAdmin || managedIds.has(t.id)) && (
               <TeamFormDialog
                 team={t}
+                restricted={!isAdmin}
                 trigger={
                   <Button variant="ghost" size="icon" aria-label={`Edit ${t.name}`}>
                     <Pencil className="h-4 w-4" />
