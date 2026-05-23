@@ -30,6 +30,7 @@ function TeamDetail() {
   const { isAdmin, user } = useAuth();
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const userEmail = user?.email?.trim().toLowerCase();
 
   const teamQ = useQuery({
     queryKey: ["team", teamId],
@@ -79,7 +80,9 @@ function TeamDetail() {
   if (!teamQ.data) return <p className="text-muted-foreground">Team not found.</p>;
   const team = teamQ.data;
   const isTeamManager = !!membersQ.data?.some(
-    (m) => m.user_id === user?.id && m.membership_role === "manager"
+    (m) =>
+      m.membership_role === "manager" &&
+      (m.user_id === user?.id || (!!userEmail && m.profile?.email?.trim().toLowerCase() === userEmail))
   );
   const canManageCoManagers = isAdmin || isTeamManager;
 
