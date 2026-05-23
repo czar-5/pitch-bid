@@ -420,11 +420,12 @@ function LobbyRoom({
 }
 
 function LiveRoom({
-  auctionId, auction, currentAp, teams, isAdmin, userId,
+  auctionId, auction, currentAp, lastFinalizedAp, teams, isAdmin, userId,
 }: {
   auctionId: string;
   auction: any;
   currentAp: any;
+  lastFinalizedAp: any;
   teams: any[];
   isAdmin: boolean;
   userId: string | null;
@@ -494,20 +495,16 @@ function LiveRoom({
     onError: (e: Error) => toast.error(e.message),
   });
 
-  const sell = useMutation({
+  const finalize = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.rpc("sell_current", { _auction_id: auctionId });
+      const { error } = await supabase.rpc("finalize_current", { _auction_id: auctionId });
       if (error) throw error;
     },
-    onSuccess: () => { toast.success("Sold"); qc.invalidateQueries({ queryKey: ["auction", auctionId] }); },
-    onError: (e: Error) => toast.error(e.message),
-  });
-  const skip = useMutation({
-    mutationFn: async () => {
-      const { error } = await supabase.rpc("skip_current", { _auction_id: auctionId });
-      if (error) throw error;
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["auction", auctionId] });
+      qc.invalidateQueries({ queryKey: ["auction-players", auctionId] });
+      qc.invalidateQueries({ queryKey: ["auction-teams", auctionId] });
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["auction", auctionId] }),
     onError: (e: Error) => toast.error(e.message),
   });
   const next = useMutation({
@@ -521,10 +518,26 @@ function LiveRoom({
 
   if (!currentAp) {
     return (
-      <div className="rounded-xl border border-border bg-card p-6 text-center space-y-3">
-        <p className="text-muted-foreground">No player on the block.</p>
+      <div className="rounded-xl border border-primary/40 bg-gradient-to-br from-primary/10 to-card p-6 text-center space-y-3">
+        {lastFinalizedAp ? (
+          <>
+            <p className="text-[10px] uppercase tracking-widest text-primary font-bold">Last player</p>
+            <p className="text-lg font-bold">
+              {lastFinalizedAp.player?.display_name ?? `${lastFinalizedAp.player?.first_name} ${lastFinalizedAp.player?.last_name}`}
+              {" "}
+              <span className="text-sm font-normal text-muted-foreground capitalize">
+                · {lastFinalizedAp.status}
+                {lastFinalizedAp.sold_price != null ? ` for ${lastFinalizedAp.sold_price.toLocaleString()}` : ""}
+              </span>
+            </p>
+          </>
+        ) : (
+          <p className="text-muted-foreground">Intermission — no player on the block.</p>
+        )}
         {isAdmin && (
-          <Button onClick={() => next.mutate()}><ChevronsRight className="h-4 w-4 mr-1" /> Bring up next player</Button>
+          <Button size="lg" onClick={() => next.mutate()} disabled={next.isPending}>
+            <ChevronsRight className="h-4 w-4 mr-1" /> Bring up next player
+          </Button>
         )}
       </div>
     );
@@ -532,6 +545,8 @@ function LiveRoom({
 
   const p = currentAp.player;
   const leadingTeam = highBid ? teams.find((t) => t.team?.id === highBid.team?.id) : null;
+  const expired = remaining != null && remaining <= 0;
+  const bigTimer = remaining != null && remaining <= 5;
 
   return (
     <div className="space-y-4">
@@ -547,25 +562,41 @@ function LiveRoom({
             <h2 className="text-xl font-bold truncate">{p?.display_name ?? `${p?.first_name} ${p?.last_name}`}</h2>
             <p className="text-xs text-muted-foreground capitalize">{p?.player_role?.replace("_", " ")}{p?.country ? ` · ${p.country}` : ""}</p>
           </div>
-          {remaining != null && (
-            <div className={`flex items-center gap-1 text-lg font-mono font-bold ${remaining <= 5 ? "text-destructive" : "text-foreground"}`}>
+          {remaining != null && !bigTimer && (
+            <div className="flex items-center gap-1 text-lg font-mono font-bold text-foreground">
               <Timer className="h-4 w-4" /> {remaining}s
             </div>
           )}
         </div>
 
-        <div className="mt-5 grid grid-cols-2 gap-3">
-          <div className="rounded-lg bg-background/60 p-3">
+        {bigTimer && (
+          <div className={`mt-5 flex items-center justify-center font-mono font-bold tabular-nums ${expired ? "text-muted-foreground" : "text-destructive animate-pulse"}`} style={{ fontSize: "5rem", lineHeight: 1 }}>
+            {remaining}s
+          </div>
+        )}
+
+        {myTeams.length === 0 && (
+          <div className="mt-5 grid grid-cols-2 gap-3">
+            <div className="rounded-lg bg-background/60 p-3">
+              <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Current bid</p>
+              <p className="text-2xl font-bold">{highBid ? highBid.amount.toLocaleString() : (0).toLocaleString()}</p>
+              <p className="text-xs text-muted-foreground truncate">{highBid ? `by ${highBid.team?.name}` : "No bids yet"}</p>
+            </div>
+            <div className="rounded-lg bg-background/60 p-3">
+              <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Next bid</p>
+              <p className="text-2xl font-bold">{nextAmount.toLocaleString()}</p>
+              <p className="text-xs text-muted-foreground">+{(nextAmount - (highBid?.amount ?? auction.baseline_price)).toLocaleString()}</p>
+            </div>
+          </div>
+        )}
+
+        {myTeams.length > 0 && (
+          <div className="mt-5 rounded-lg bg-background/60 p-3">
             <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Current bid</p>
-            <p className="text-2xl font-bold">{highBid ? highBid.amount.toLocaleString() : auction.baseline_price.toLocaleString()}</p>
-            <p className="text-xs text-muted-foreground truncate">{highBid ? `by ${highBid.team?.name}` : "Baseline price"}</p>
+            <p className="text-2xl font-bold">{highBid ? highBid.amount.toLocaleString() : (0).toLocaleString()}</p>
+            <p className="text-xs text-muted-foreground truncate">{highBid ? `by ${highBid.team?.name}` : "No bids yet"}</p>
           </div>
-          <div className="rounded-lg bg-background/60 p-3">
-            <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Next bid</p>
-            <p className="text-2xl font-bold">{nextAmount.toLocaleString()}</p>
-            <p className="text-xs text-muted-foreground">+{(nextAmount - (highBid?.amount ?? auction.baseline_price)).toLocaleString()}</p>
-          </div>
-        </div>
+        )}
       </div>
 
       {myTeams.length > 0 && (
@@ -583,41 +614,53 @@ function LiveRoom({
             ))}
           </div>
           <Button
-            className="w-full h-12 text-base font-bold"
+            className="w-full h-14 text-lg font-bold"
             onClick={() => placeBid.mutate()}
-            disabled={placeBid.isPending || !selectedTeam || (leadingTeam?.team?.id === selectedTeam)}
+            disabled={placeBid.isPending || !selectedTeam || expired || (leadingTeam?.team?.id === selectedTeam)}
           >
             <Gavel className="h-4 w-4 mr-2" />
-            {leadingTeam?.team?.id === selectedTeam ? "You're leading" : `Bid ${nextAmount.toLocaleString()}`}
+            {expired ? "Round closed" : leadingTeam?.team?.id === selectedTeam ? "You're leading" : `Bid ${nextAmount.toLocaleString()}`}
           </Button>
         </div>
       )}
 
       {isAdmin && (
-        <div className="grid grid-cols-3 gap-2">
-          <Button variant="default" onClick={() => sell.mutate()} disabled={sell.isPending}>
-            <Check className="h-4 w-4 mr-1" /> Sold
-          </Button>
-          <Button variant="outline" onClick={() => skip.mutate()} disabled={skip.isPending}>
-            <SkipForward className="h-4 w-4 mr-1" /> Skip
-          </Button>
-          <Button variant="outline" onClick={() => next.mutate()} disabled={next.isPending}>
-            <ChevronsRight className="h-4 w-4 mr-1" /> Next
-          </Button>
-        </div>
+        <Button className="w-full" onClick={() => finalize.mutate()} disabled={finalize.isPending}>
+          <ChevronsRight className="h-4 w-4 mr-1" />
+          {highBid ? `Sell to ${highBid.team?.name} for ${highBid.amount.toLocaleString()} · Next` : "Mark unsold · Next"}
+        </Button>
       )}
-
-      <div className="rounded-xl border border-border bg-card">
-        <p className="px-4 py-2 text-[10px] uppercase tracking-widest font-bold text-muted-foreground border-b border-border">Bid history</p>
-        <div className="divide-y divide-border">
-          {bidsQ.data?.length ? bidsQ.data.map((b) => (
-            <div key={b.id} className="px-4 py-2 flex items-center justify-between text-sm">
-              <span className="font-medium">{b.team?.name}</span>
-              <span className="font-mono">{b.amount.toLocaleString()}</span>
-            </div>
-          )) : <p className="px-4 py-3 text-xs text-muted-foreground">No bids yet — baseline {auction.baseline_price.toLocaleString()}</p>}
-        </div>
-      </div>
     </div>
+  );
+}
+
+function PreviousBidHistory({ auctionPlayerId, player }: { auctionPlayerId: string; player: any }) {
+  const bidsQ = useQuery({
+    queryKey: ["bids-history", auctionPlayerId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("bids")
+        .select("id,amount,created_at,team:teams(id,name)")
+        .eq("auction_player_id", auctionPlayerId)
+        .order("amount", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+  });
+  const name = player?.display_name ?? `${player?.first_name ?? ""} ${player?.last_name ?? ""}`.trim();
+  return (
+    <section>
+      <h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-3">
+        Previous bid history · {name}
+      </h2>
+      <div className="rounded-xl border border-border bg-card divide-y divide-border">
+        {bidsQ.data?.length ? bidsQ.data.map((b) => (
+          <div key={b.id} className="px-4 py-2 flex items-center justify-between text-sm">
+            <span className="font-medium">{b.team?.name}</span>
+            <span className="font-mono">{b.amount.toLocaleString()}</span>
+          </div>
+        )) : <p className="px-4 py-3 text-xs text-muted-foreground">No bids were placed.</p>}
+      </div>
+    </section>
   );
 }
