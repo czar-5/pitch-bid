@@ -14,7 +14,7 @@ export const Route = createFileRoute("/_authenticated/profile")({
 
 interface ProfileData {
   name: string;
-  email: string;
+  email: string | null;
   created_at: string;
 }
 
