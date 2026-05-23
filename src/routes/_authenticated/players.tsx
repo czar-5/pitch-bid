@@ -5,7 +5,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Search, ExternalLink } from "lucide-react";
+import { Plus, Search, ExternalLink, Pencil, Trash2 } from "lucide-react";
+import { PlayerFormDialog } from "@/components/admin/PlayerFormDialog";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 export const Route = createFileRoute("/_authenticated/players")({
   component: PlayersPage,
@@ -18,6 +25,15 @@ const roleLabel: Record<string, string> = {
 function PlayersPage() {
   const { isAdmin } = useAuth();
   const [q, setQ] = useState("");
+  const qc = useQueryClient();
+  const del = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from("players").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => { toast.success("Player deleted"); qc.invalidateQueries({ queryKey: ["players"] }); },
+    onError: (e: Error) => toast.error(e.message),
+  });
   const { data, isLoading } = useQuery({
     queryKey: ["players"],
     queryFn: async () => {
@@ -42,7 +58,9 @@ function PlayersPage() {
           <h1 className="text-3xl font-bold tracking-tight">Players</h1>
           <p className="text-sm text-muted-foreground">Master player pool.</p>
         </div>
-        {isAdmin && <Button disabled><Plus className="h-4 w-4 mr-1" /> Create Player</Button>}
+        {isAdmin && (
+          <PlayerFormDialog trigger={<Button><Plus className="h-4 w-4 mr-1" /> Create Player</Button>} />
+        )}
       </div>
 
       <div className="relative">
@@ -64,7 +82,7 @@ function PlayersPage() {
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {filtered.map((p) => (
-          <div key={p.id} className="rounded-xl border border-border bg-card p-4 flex gap-3">
+          <div key={p.id} className="rounded-xl border border-border bg-card p-4 flex gap-3 group relative">
             <div className="h-14 w-14 rounded-full bg-muted overflow-hidden flex-shrink-0">
               {p.photo_url ? (
                 <img src={p.photo_url} alt="" className="h-full w-full object-cover" />
@@ -93,6 +111,31 @@ function PlayersPage() {
                 </a>
               )}
             </div>
+            {isAdmin && (
+              <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition">
+                <PlayerFormDialog
+                  player={p}
+                  trigger={<Button size="icon" variant="ghost" className="h-7 w-7"><Pencil className="h-3.5 w-3.5" /></Button>}
+                />
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive"><Trash2 className="h-3.5 w-3.5" /></Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Delete player?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This will permanently remove {p.display_name ?? `${p.first_name} ${p.last_name}`} from the master pool.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={() => del.mutate(p.id)}>Delete</AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
+            )}
           </div>
         ))}
       </div>
