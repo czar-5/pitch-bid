@@ -221,7 +221,7 @@ export function TeamFormDialog({ trigger, team, onSuccess }: TeamFormDialogProps
 
             <div className="space-y-2 pt-2 border-t border-border">
               <div className="flex items-center justify-between">
-                <FormLabel className="text-sm">Managers</FormLabel>
+                <span className="text-sm font-medium">Managers</span>
                 <span className="text-xs text-muted-foreground">
                   Roles are granted automatically
                 </span>
