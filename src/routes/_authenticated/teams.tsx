@@ -28,13 +28,12 @@ function TeamsPage() {
       const email = user!.email?.trim().toLowerCase();
 
       if (email) {
-        const { data: profile, error: profileError } = await supabase
+        const { data: profiles, error: profileError } = await supabase
           .from("profiles")
           .select("id")
-          .eq("email", email)
-          .maybeSingle();
+          .eq("email", email);
         if (profileError) throw profileError;
-        if (profile?.id) candidateUserIds.add(profile.id);
+        profiles?.forEach((profile) => candidateUserIds.add(profile.id));
       }
 
       const { data, error } = await supabase
