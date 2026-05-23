@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { Plus, Calendar, Users, Radio, Trash2 } from "lucide-react";
+import { Plus, Calendar, Users, Radio, Trash2, Play } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { AuctionWizardDialog } from "@/components/admin/AuctionWizardDialog";
@@ -33,6 +33,14 @@ function AuctionsPage() {
       if (error) throw error;
     },
     onSuccess: () => { toast.success("Auction deleted"); qc.invalidateQueries({ queryKey: ["auctions"] }); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const start = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.rpc("start_auction", { _auction_id: id });
+      if (error) throw error;
+    },
+    onSuccess: () => { toast.success("Auction started"); qc.invalidateQueries({ queryKey: ["auctions"] }); },
     onError: (e: Error) => toast.error(e.message),
   });
   const { data, isLoading } = useQuery({
@@ -72,21 +80,22 @@ function AuctionsPage() {
         </div>
       )}
 
-      <Section title="Live" tone="live" items={groups.live} isAdmin={isAdmin} onDelete={(id) => del.mutate(id)} />
-      <Section title="Upcoming" tone="upcoming" items={groups.upcoming} isAdmin={isAdmin} onDelete={(id) => del.mutate(id)} />
-      <Section title="Completed" tone="completed" items={groups.completed} isAdmin={isAdmin} onDelete={(id) => del.mutate(id)} />
+      <Section title="Live" tone="live" items={groups.live} isAdmin={isAdmin} onDelete={(id) => del.mutate(id)} onStart={(id) => start.mutate(id)} />
+      <Section title="Upcoming" tone="upcoming" items={groups.upcoming} isAdmin={isAdmin} onDelete={(id) => del.mutate(id)} onStart={(id) => start.mutate(id)} />
+      <Section title="Completed" tone="completed" items={groups.completed} isAdmin={isAdmin} onDelete={(id) => del.mutate(id)} onStart={(id) => start.mutate(id)} />
     </div>
   );
 }
 
 function Section({
-  title, tone, items, isAdmin, onDelete,
+  title, tone, items, isAdmin, onDelete, onStart,
 }: {
   title: string;
   tone: "live" | "upcoming" | "completed";
   items: (Auction & { auction_teams: { count: number }[] })[];
   isAdmin: boolean;
   onDelete: (id: string) => void;
+  onStart: (id: string) => void;
 }) {
   if (items.length === 0) return null;
   return (
@@ -111,6 +120,17 @@ function Section({
             </Link>
             {isAdmin && (
               <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition">
+                {tone === "upcoming" && (
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-7 w-7 text-primary"
+                    title="Start auction"
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); onStart(a.id); }}
+                  >
+                    <Play className="h-3.5 w-3.5" />
+                  </Button>
+                )}
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
                     <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive">
