@@ -72,37 +72,67 @@ function AuctionsPage() {
         </div>
       )}
 
-      <Section title="Live" tone="live" items={groups.live} />
-      <Section title="Upcoming" tone="upcoming" items={groups.upcoming} />
-      <Section title="Completed" tone="completed" items={groups.completed} />
+      <Section title="Live" tone="live" items={groups.live} isAdmin={isAdmin} onDelete={(id) => del.mutate(id)} />
+      <Section title="Upcoming" tone="upcoming" items={groups.upcoming} isAdmin={isAdmin} onDelete={(id) => del.mutate(id)} />
+      <Section title="Completed" tone="completed" items={groups.completed} isAdmin={isAdmin} onDelete={(id) => del.mutate(id)} />
     </div>
   );
 }
 
 function Section({
-  title, tone, items,
-}: { title: string; tone: "live" | "upcoming" | "completed"; items: (Auction & { auction_teams: { count: number }[] })[] }) {
+  title, tone, items, isAdmin, onDelete,
+}: {
+  title: string;
+  tone: "live" | "upcoming" | "completed";
+  items: (Auction & { auction_teams: { count: number }[] })[];
+  isAdmin: boolean;
+  onDelete: (id: string) => void;
+}) {
   if (items.length === 0) return null;
   return (
     <section>
       <h2 className="mb-3 text-sm font-bold uppercase tracking-widest text-muted-foreground">{title}</h2>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {items.map((a) => (
-          <Link
-            key={a.id}
-            to="/auctions/$auctionId"
-            params={{ auctionId: a.id }}
-            className="group rounded-xl border border-border bg-card p-4 transition hover:border-primary hover:shadow-[var(--shadow-glow)]"
-          >
-            <div className="flex items-start justify-between gap-2">
-              <h3 className="font-semibold leading-tight">{a.name}</h3>
-              <StatusBadge tone={tone} />
-            </div>
-            <div className="mt-3 flex items-center gap-3 text-xs text-muted-foreground">
-              <span className="flex items-center gap-1"><Calendar className="h-3.5 w-3.5" />{format(new Date(a.scheduled_at), "MMM d, p")}</span>
-              <span className="flex items-center gap-1"><Users className="h-3.5 w-3.5" />{a.auction_teams?.[0]?.count ?? 0} teams</span>
-            </div>
-          </Link>
+          <div key={a.id} className="group relative rounded-xl border border-border bg-card p-4 transition hover:border-primary hover:shadow-[var(--shadow-glow)]">
+            <Link
+              to="/auctions/$auctionId"
+              params={{ auctionId: a.id }}
+              className="block"
+            >
+              <div className="flex items-start justify-between gap-2">
+                <h3 className="font-semibold leading-tight">{a.name}</h3>
+                <StatusBadge tone={tone} />
+              </div>
+              <div className="mt-3 flex items-center gap-3 text-xs text-muted-foreground">
+                <span className="flex items-center gap-1"><Calendar className="h-3.5 w-3.5" />{format(new Date(a.scheduled_at), "MMM d, p")}</span>
+                <span className="flex items-center gap-1"><Users className="h-3.5 w-3.5" />{a.auction_teams?.[0]?.count ?? 0} teams</span>
+              </div>
+            </Link>
+            {isAdmin && (
+              <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition">
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive">
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Delete auction?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This will permanently remove {a.name} and all linked teams and players.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={() => onDelete(a.id)}>Delete</AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
+            )}
+          </div>
         ))}
       </div>
     </section>
