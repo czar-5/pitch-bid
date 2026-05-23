@@ -356,6 +356,8 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      end_auction: { Args: { _auction_id: string }; Returns: undefined }
+      go_live_auction: { Args: { _auction_id: string }; Returns: undefined }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -376,7 +378,13 @@ export type Database = {
     Enums: {
       app_role: "admin" | "manager" | "co_manager" | "viewer"
       auction_player_status: "queued" | "live" | "sold" | "unsold" | "skipped"
-      auction_status: "upcoming" | "live" | "paused" | "completed" | "archived"
+      auction_status:
+        | "upcoming"
+        | "lobby"
+        | "live"
+        | "paused"
+        | "completed"
+        | "archived"
       membership_role: "manager" | "co_manager"
       player_role: "batsman" | "bowler" | "all_rounder" | "wicketkeeper"
     }
@@ -508,7 +516,14 @@ export const Constants = {
     Enums: {
       app_role: ["admin", "manager", "co_manager", "viewer"],
       auction_player_status: ["queued", "live", "sold", "unsold", "skipped"],
-      auction_status: ["upcoming", "live", "paused", "completed", "archived"],
+      auction_status: [
+        "upcoming",
+        "lobby",
+        "live",
+        "paused",
+        "completed",
+        "archived",
+      ],
       membership_role: ["manager", "co_manager"],
       player_role: ["batsman", "bowler", "all_rounder", "wicketkeeper"],
     },

@@ -56,7 +56,7 @@ function AuctionsPage() {
   });
 
   const groups = {
-    live: data?.filter((a) => a.status === "live" || a.status === "paused") ?? [],
+    live: data?.filter((a) => a.status === "live" || a.status === "paused" || (a.status as string) === "lobby") ?? [],
     upcoming: data?.filter((a) => a.status === "upcoming") ?? [],
     completed: data?.filter((a) => a.status === "completed" || a.status === "archived") ?? [],
   };

@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Calendar, Coins, Gavel, Play, SkipForward, Check, ChevronsRight, Trash2, Users, Timer } from "lucide-react";
+import { ArrowLeft, Calendar, Coins, Gavel, Play, SkipForward, Check, ChevronsRight, Trash2, Users, Timer, CheckCircle2, Circle, StopCircle, AlertTriangle, Radio } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -89,7 +89,16 @@ function AuctionDetail() {
       const { error } = await supabase.rpc("start_auction", { _auction_id: auctionId });
       if (error) throw error;
     },
-    onSuccess: () => { toast.success("Auction started"); qc.invalidateQueries({ queryKey: ["auction", auctionId] }); qc.invalidateQueries({ queryKey: ["auction-players", auctionId] }); },
+    onSuccess: () => { toast.success("Lobby opened — waiting for team managers"); qc.invalidateQueries({ queryKey: ["auction", auctionId] }); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const endAuction = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.rpc("end_auction", { _auction_id: auctionId });
+      if (error) throw error;
+    },
+    onSuccess: () => { toast.success("Auction ended"); qc.invalidateQueries({ queryKey: ["auction", auctionId] }); qc.invalidateQueries({ queryKey: ["auction-players", auctionId] }); },
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -97,7 +106,9 @@ function AuctionDetail() {
   if (!auctionQ.data) return <p className="text-muted-foreground">Auction not found.</p>;
   const a = auctionQ.data;
 
-  const isLive = a.status === "live";
+  const status = a.status as string;
+  const isLive = status === "live";
+  const isLobby = status === "lobby";
   const currentAp = playersQ.data?.find((p) => p.id === a.current_player_id) ?? null;
 
   return (
@@ -134,15 +145,45 @@ function AuctionDetail() {
               </AlertDialogContent>
             </AlertDialog>
           )}
+          {isAdmin && isLive && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="outline" size="sm" className="text-destructive">
+                  <StopCircle className="h-4 w-4 mr-1" /> End auction
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>End this auction now?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Any remaining players will be marked unsold and bidding will stop immediately. This cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={() => endAuction.mutate()}>End auction</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
         </div>
         {isAdmin && a.status === "upcoming" && (
           <div className="mt-4">
             <Button onClick={() => start.mutate()} disabled={start.isPending || (playersQ.data?.length ?? 0) === 0}>
-              <Play className="h-4 w-4 mr-1" /> Start auction
+              <Play className="h-4 w-4 mr-1" /> Open lobby
             </Button>
           </div>
         )}
       </div>
+
+      {isLobby && (
+        <LobbyRoom
+          auctionId={auctionId}
+          teams={teamsQ.data ?? []}
+          isAdmin={isAdmin}
+          userId={user?.id ?? null}
+        />
+      )}
 
       {isLive && (
         <LiveRoom
@@ -197,6 +238,169 @@ function AuctionDetail() {
 }
 
 type AuctionRow = NonNullable<ReturnType<typeof useQuery<{ id: string }>>["data"]>;
+
+function LobbyRoom({
+  auctionId, teams, isAdmin, userId,
+}: {
+  auctionId: string;
+  teams: any[];
+  isAdmin: boolean;
+  userId: string | null;
+}) {
+  const qc = useQueryClient();
+
+  // which teams does this user manage?
+  const membershipsQ = useQuery({
+    queryKey: ["my-memberships", userId],
+    enabled: !!userId,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("team_members").select("team_id").eq("user_id", userId!);
+      if (error) throw error;
+      return data.map((r) => r.team_id);
+    },
+  });
+
+  const myTeamIds = useMemo(() => {
+    const mine = new Set(membershipsQ.data ?? []);
+    return teams.filter((t) => mine.has(t.team?.id)).map((t) => t.team.id as string);
+  }, [teams, membershipsQ.data]);
+
+  // realtime presence: track joined team ids
+  const [joinedTeamIds, setJoinedTeamIds] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (!userId) return;
+    const channel = supabase.channel(`auction-lobby-${auctionId}`, {
+      config: { presence: { key: userId } },
+    });
+
+    const refresh = () => {
+      const state = channel.presenceState() as Record<string, Array<{ team_ids?: string[] }>>;
+      const ids = new Set<string>();
+      for (const arr of Object.values(state)) {
+        for (const p of arr) {
+          for (const tid of p.team_ids ?? []) ids.add(tid);
+        }
+      }
+      setJoinedTeamIds(ids);
+    };
+
+    channel
+      .on("presence", { event: "sync" }, refresh)
+      .on("presence", { event: "join" }, refresh)
+      .on("presence", { event: "leave" }, refresh)
+      .subscribe(async (status) => {
+        if (status === "SUBSCRIBED") {
+          await channel.track({ team_ids: myTeamIds, is_admin: isAdmin });
+        }
+      });
+
+    return () => { supabase.removeChannel(channel); };
+  }, [auctionId, userId, isAdmin, myTeamIds.join(",")]);
+
+  const totalTeams = teams.length;
+  const joinedCount = teams.filter((t) => joinedTeamIds.has(t.team?.id)).length;
+  const allJoined = totalTeams > 0 && joinedCount === totalTeams;
+
+  const goLive = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.rpc("go_live_auction", { _auction_id: auctionId });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Auction is live!");
+      qc.invalidateQueries({ queryKey: ["auction", auctionId] });
+      qc.invalidateQueries({ queryKey: ["auction-players", auctionId] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  return (
+    <div className="rounded-xl border border-primary/40 bg-gradient-to-br from-primary/10 to-card p-5 space-y-5">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p className="text-[10px] uppercase tracking-widest text-primary font-bold flex items-center gap-1">
+            <Radio className="h-3 w-3 animate-pulse" /> Lobby
+          </p>
+          <h2 className="text-lg font-bold">Waiting room</h2>
+          <p className="text-xs text-muted-foreground">
+            {joinedCount} of {totalTeams} team managers joined
+          </p>
+        </div>
+        {myTeamIds.length > 0 && (
+          <span className="rounded-full bg-primary/15 px-3 py-1 text-xs font-bold text-primary">
+            You're in
+          </span>
+        )}
+      </div>
+
+      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2">
+        {teams.map((at) => {
+          const joined = joinedTeamIds.has(at.team?.id);
+          return (
+            <div
+              key={at.id}
+              className={`rounded-lg border p-3 flex items-center gap-3 transition ${joined ? "border-primary bg-primary/5" : "border-border bg-card"}`}
+            >
+              <div
+                className="h-9 w-9 rounded-lg bg-muted flex items-center justify-center text-xs font-bold overflow-hidden flex-shrink-0"
+                style={{ background: at.team?.primary_color ?? undefined }}
+              >
+                {at.team?.logo_url
+                  ? <img src={at.team.logo_url} alt="" className="h-full w-full object-cover" />
+                  : (at.team?.name as string)?.slice(0, 2).toUpperCase()}
+              </div>
+              <p className="flex-1 min-w-0 truncate font-medium text-sm">{at.team?.name}</p>
+              {joined
+                ? <CheckCircle2 className="h-5 w-5 text-primary" />
+                : <Circle className="h-5 w-5 text-muted-foreground/40" />}
+            </div>
+          );
+        })}
+      </div>
+
+      {isAdmin && (
+        <div className="space-y-2">
+          {!allJoined && (
+            <div className="flex items-start gap-2 rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-xs text-destructive">
+              <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5" />
+              <span>{totalTeams - joinedCount} team manager{totalTeams - joinedCount === 1 ? "" : "s"} haven't joined yet. You can still start, but they'll miss the opening bids.</span>
+            </div>
+          )}
+          {allJoined ? (
+            <Button className="w-full h-12 text-base font-bold" onClick={() => goLive.mutate()} disabled={goLive.isPending}>
+              <Play className="h-4 w-4 mr-2" /> Start bidding
+            </Button>
+          ) : (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button className="w-full h-12 text-base font-bold" variant="outline" disabled={goLive.isPending}>
+                  <Play className="h-4 w-4 mr-2" /> Start bidding anyway
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Start without everyone?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    {totalTeams - joinedCount} team manager{totalTeams - joinedCount === 1 ? " hasn't" : "s haven't"} joined the lobby yet. They can still join after bidding starts, but may miss the first player.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Wait</AlertDialogCancel>
+                  <AlertDialogAction onClick={() => goLive.mutate()}>Start anyway</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
+        </div>
+      )}
+
+      {!isAdmin && myTeamIds.length === 0 && (
+        <p className="text-xs text-muted-foreground text-center">You're spectating — only team managers count toward the join check.</p>
+      )}
+    </div>
+  );
+}
 
 function LiveRoom({
   auctionId, auction, currentAp, teams, isAdmin, userId,
