@@ -11,7 +11,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+// (Accordion replaced by browser-tab style TeamsTabs component below)
 
 export const Route = createFileRoute("/_authenticated/auctions_/$auctionId")({
   component: AuctionDetail,
@@ -211,19 +211,7 @@ function AuctionDetail() {
         <h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-3 flex items-center gap-2">
           <Users className="h-4 w-4" /> Teams ({teamsQ.data?.length ?? 0})
         </h2>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {teamsQ.data?.map((at) => (
-            <div key={at.id} className="rounded-lg border border-border bg-card p-3 flex items-center gap-3">
-              <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center text-xs font-bold" style={{ background: at.team?.primary_color ?? undefined }}>
-                {at.team?.logo_url ? <img src={at.team.logo_url} alt="" className="h-full w-full rounded-lg object-cover" /> : at.team?.name.slice(0, 2).toUpperCase()}
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="font-medium truncate">{at.team?.name}</p>
-                <p className="text-xs text-muted-foreground">Budget {at.budget_remaining.toLocaleString()} · {at.players_bought} bought</p>
-              </div>
-            </div>
-          ))}
-        </div>
+        <TeamsTabs auctionId={auctionId} teams={teamsQ.data ?? []} />
       </section>
       )}
 
@@ -320,31 +308,6 @@ function LobbyRoom({
   const joinedCount = teams.filter((t) => joinedTeamIds.has(t.team?.id)).length;
   const allJoined = totalTeams > 0 && joinedCount === totalTeams;
 
-  // Roster: players already sold to each team in this auction
-  const rosterQ = useQuery({
-    queryKey: ["auction-team-roster", auctionId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("auction_players")
-        .select("sold_team_id,sold_price,player:players(first_name,last_name,display_name,player_role,photo_url)")
-        .eq("auction_id", auctionId)
-        .eq("status", "sold");
-      if (error) throw error;
-      return data;
-    },
-  });
-
-  const rosterByTeam = useMemo(() => {
-    const map = new Map<string, Array<any>>();
-    for (const r of rosterQ.data ?? []) {
-      if (!r.sold_team_id) continue;
-      const arr = map.get(r.sold_team_id) ?? [];
-      arr.push(r);
-      map.set(r.sold_team_id, arr);
-    }
-    return map;
-  }, [rosterQ.data]);
-
   const goLive = useMutation({
     mutationFn: async () => {
       const { error } = await supabase.rpc("go_live_auction", { _auction_id: auctionId });
@@ -377,69 +340,7 @@ function LobbyRoom({
         )}
       </div>
 
-      <Accordion type="single" collapsible className="space-y-2">
-        {teams.map((at) => {
-          const joined = joinedTeamIds.has(at.team?.id);
-          const roster = rosterByTeam.get(at.team?.id) ?? [];
-          return (
-            <AccordionItem
-              key={at.id}
-              value={at.id}
-              className={`rounded-lg border px-3 transition ${joined ? "border-primary bg-primary/5" : "border-border bg-card"}`}
-            >
-              <AccordionTrigger className="py-2.5 hover:no-underline">
-                <div className="flex items-center gap-3 flex-1 min-w-0">
-                  <div
-                    className="h-9 w-9 rounded-lg bg-muted flex items-center justify-center text-xs font-bold overflow-hidden flex-shrink-0"
-                    style={{ background: at.team?.primary_color ?? undefined }}
-                  >
-                    {at.team?.logo_url
-                      ? <img src={at.team.logo_url} alt="" className="h-full w-full object-cover" />
-                      : (at.team?.name as string)?.slice(0, 2).toUpperCase()}
-                  </div>
-                  <p className="flex-1 min-w-0 truncate font-medium text-sm text-left">{at.team?.name}</p>
-                  <span className="text-[10px] font-semibold text-muted-foreground rounded-full bg-muted px-2 py-0.5">
-                    {roster.length} {roster.length === 1 ? "player" : "players"}
-                  </span>
-                  {joined
-                    ? <CheckCircle2 className="h-5 w-5 text-primary" />
-                    : <Circle className="h-5 w-5 text-muted-foreground/40" />}
-                </div>
-              </AccordionTrigger>
-              <AccordionContent className="pb-3 pt-1">
-                <div className="flex items-center justify-between text-[11px] text-muted-foreground mb-2 px-1">
-                  <span>Budget remaining</span>
-                  <span className="font-semibold text-foreground">{(at.budget_remaining ?? 0).toLocaleString()}</span>
-                </div>
-                {roster.length === 0 ? (
-                  <p className="text-xs text-muted-foreground italic text-center py-3">No players yet</p>
-                ) : (
-                  <ul className="space-y-1">
-                    {roster.map((r: any, i: number) => {
-                      const p = r.player;
-                      const name = p?.display_name || `${p?.first_name ?? ""} ${p?.last_name ?? ""}`.trim();
-                      return (
-                        <li key={i} className="flex items-center gap-2 rounded-md bg-background/60 border border-border/50 px-2 py-1.5">
-                          <div className="h-7 w-7 rounded-full bg-muted overflow-hidden flex-shrink-0 flex items-center justify-center text-[10px] font-bold">
-                            {p?.photo_url
-                              ? <img src={p.photo_url} alt="" className="h-full w-full object-cover" />
-                              : name.slice(0, 2).toUpperCase()}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs font-medium truncate">{name}</p>
-                            <p className="text-[10px] text-muted-foreground capitalize">{p?.player_role}</p>
-                          </div>
-                          <span className="text-xs font-semibold tabular-nums">{(r.sold_price ?? 0).toLocaleString()}</span>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
-              </AccordionContent>
-            </AccordionItem>
-          );
-        })}
-      </Accordion>
+      <TeamsTabs auctionId={auctionId} teams={teams} joinedTeamIds={joinedTeamIds} />
 
       {isAdmin && (
         <div className="space-y-2">
@@ -727,5 +628,133 @@ function PreviousBidHistory({ auctionPlayerId, player }: { auctionPlayerId: stri
         )) : <p className="px-4 py-3 text-xs text-muted-foreground">No bids were placed.</p>}
       </div>
     </section>
+  );
+}
+
+function TeamsTabs({
+  auctionId, teams, joinedTeamIds,
+}: {
+  auctionId: string;
+  teams: any[];
+  joinedTeamIds?: Set<string>;
+}) {
+  const [activeId, setActiveId] = useState<string | null>(teams[0]?.team?.id ?? null);
+  useEffect(() => {
+    if (!activeId && teams[0]) setActiveId(teams[0].team.id);
+  }, [teams, activeId]);
+
+  const rosterQ = useQuery({
+    queryKey: ["auction-team-roster", auctionId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("auction_players")
+        .select("sold_team_id,sold_price,player:players(first_name,last_name,display_name,player_role,photo_url)")
+        .eq("auction_id", auctionId)
+        .eq("status", "sold");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const rosterByTeam = useMemo(() => {
+    const map = new Map<string, Array<any>>();
+    for (const r of rosterQ.data ?? []) {
+      if (!r.sold_team_id) continue;
+      const arr = map.get(r.sold_team_id) ?? [];
+      arr.push(r);
+      map.set(r.sold_team_id, arr);
+    }
+    return map;
+  }, [rosterQ.data]);
+
+  const active = teams.find((t) => t.team?.id === activeId) ?? teams[0];
+  if (!active) return <p className="text-xs text-muted-foreground">No teams.</p>;
+  const activeRoster = rosterByTeam.get(active.team?.id) ?? [];
+
+  return (
+    <div>
+      {/* Browser-style tab strip */}
+      <div className="flex items-end gap-1 overflow-x-auto -mb-px pb-0 scrollbar-thin">
+        {teams.map((at) => {
+          const isActive = at.team?.id === activeId;
+          const joined = joinedTeamIds?.has(at.team?.id);
+          return (
+            <button
+              key={at.id}
+              type="button"
+              onClick={() => setActiveId(at.team.id)}
+              className={`group relative flex items-center gap-2 px-3 py-2 rounded-t-lg border border-b-0 text-xs font-medium whitespace-nowrap transition ${
+                isActive
+                  ? "bg-card border-border text-foreground z-10"
+                  : "bg-muted/50 border-transparent text-muted-foreground hover:bg-muted hover:text-foreground"
+              }`}
+            >
+              <div
+                className="h-5 w-5 rounded bg-muted flex items-center justify-center text-[9px] font-bold overflow-hidden flex-shrink-0"
+                style={{ background: at.team?.primary_color ?? undefined }}
+              >
+                {at.team?.logo_url
+                  ? <img src={at.team.logo_url} alt="" className="h-full w-full object-cover" />
+                  : (at.team?.name as string)?.slice(0, 2).toUpperCase()}
+              </div>
+              <span className="max-w-[10rem] truncate">{at.team?.name}</span>
+              {joinedTeamIds && (
+                joined
+                  ? <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
+                  : <Circle className="h-3.5 w-3.5 text-muted-foreground/40" />
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Active tab content panel */}
+      <div className="rounded-b-xl rounded-tr-xl border border-border bg-card p-4">
+        <div className="flex items-center gap-3 mb-3">
+          <div
+            className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center text-xs font-bold overflow-hidden flex-shrink-0"
+            style={{ background: active.team?.primary_color ?? undefined }}
+          >
+            {active.team?.logo_url
+              ? <img src={active.team.logo_url} alt="" className="h-full w-full object-cover" />
+              : (active.team?.name as string)?.slice(0, 2).toUpperCase()}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold truncate">{active.team?.name}</p>
+            <p className="text-xs text-muted-foreground">
+              Budget {(active.budget_remaining ?? 0).toLocaleString()} · {active.players_bought ?? 0} bought
+            </p>
+          </div>
+          <span className="text-[10px] font-semibold text-muted-foreground rounded-full bg-muted px-2 py-0.5">
+            {activeRoster.length} {activeRoster.length === 1 ? "player" : "players"}
+          </span>
+        </div>
+
+        {activeRoster.length === 0 ? (
+          <p className="text-xs text-muted-foreground italic text-center py-4">No players yet</p>
+        ) : (
+          <ul className="grid sm:grid-cols-2 gap-1.5">
+            {activeRoster.map((r: any, i: number) => {
+              const p = r.player;
+              const name = p?.display_name || `${p?.first_name ?? ""} ${p?.last_name ?? ""}`.trim();
+              return (
+                <li key={i} className="flex items-center gap-2 rounded-md bg-background/60 border border-border/50 px-2 py-1.5">
+                  <div className="h-7 w-7 rounded-full bg-muted overflow-hidden flex-shrink-0 flex items-center justify-center text-[10px] font-bold">
+                    {p?.photo_url
+                      ? <img src={p.photo_url} alt="" className="h-full w-full object-cover" />
+                      : name.slice(0, 2).toUpperCase()}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium truncate">{name}</p>
+                    <p className="text-[10px] text-muted-foreground capitalize">{p?.player_role}</p>
+                  </div>
+                  <span className="text-xs font-semibold tabular-nums">{(r.sold_price ?? 0).toLocaleString()}</span>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
+    </div>
   );
 }
