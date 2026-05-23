@@ -126,16 +126,34 @@ export function TeamFormDialog({ trigger, team, onSuccess }: TeamFormDialogProps
 
   const mutation = useMutation({
     mutationFn: async (values: FormValues) => {
+      // Auto-commit a pending email typed in the input but not yet added via "+"
+      const typed = newEmail.trim().toLowerCase();
+      const extraPending: PendingMember[] =
+        typed && !pending.some((p) => p.email === typed)
+          ? [{ email: typed, role: newRole }]
+          : [];
+
       if (team) {
         const { error } = await supabase.from("teams").update(values).eq("id", team.id);
         if (error) throw error;
+        // If editing and user typed an email without clicking +, add them now
+        for (const m of extraPending) {
+          try {
+            const userId = await resolveEmailToUserId(m.email);
+            const { error: mErr } = await supabase.from("team_members")
+              .insert({ team_id: team.id, user_id: userId, membership_role: m.role });
+            if (mErr) throw mErr;
+          } catch (e) {
+            toast.error(`${m.email}: ${(e as Error).message}`);
+          }
+        }
         return team.id;
       } else {
         const { data, error } = await supabase.from("teams").insert(values).select("id").single();
         if (error) throw error;
         const newId = data.id as string;
         // Insert pending members for the new team
-        for (const m of pending) {
+        for (const m of [...pending, ...extraPending]) {
           try {
             const userId = await resolveEmailToUserId(m.email);
             const { error: mErr } = await supabase.from("team_members")
