@@ -30,10 +30,11 @@ type WizardState = {
 };
 
 const DEFAULT_BID_RULES: BidRule[] = [
-  { min: 0, max: 1000, increment: 50 },
-  { min: 1000, max: 5000, increment: 100 },
-  { min: 5000, max: null, increment: 500 },
+  { min: 0, max: null, increment: 100 },
 ];
+
+const NO_SPIN =
+  "[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none";
 
 const STEPS = ["Basics", "Money rules", "Teams", "Players", "Review"] as const;
 
@@ -98,7 +99,11 @@ export function AuctionWizardDialog({ trigger }: { trigger: React.ReactNode }) {
           team_budget: state.team_budget,
           baseline_price: state.baseline_price,
           round_closure_seconds: state.round_closure_seconds,
-          bid_rules_json: state.bid_rules,
+          bid_rules_json: state.bid_rules.map((r, i, arr) => ({
+            min: i === 0 ? state.baseline_price : (arr[i - 1].max ?? state.baseline_price),
+            max: r.max,
+            increment: r.increment,
+          })),
           status: "upcoming",
         })
         .select("id")
