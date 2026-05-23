@@ -81,6 +81,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { name: "twitter:site", content: "@Lovable" },
+      { name: "twitter:title", content: "PitchBid — Live Player Auctions" },
+      { name: "twitter:description", content: "Run real-time player auctions for your cricket tournaments." },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/9b3d02e8-0591-4944-8e13-35b96dca52f5/id-preview-c301a8d1--266f0598-d623-4c20-855b-ba738d578e40.lovable.app-1779549029299.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/9b3d02e8-0591-4944-8e13-35b96dca52f5/id-preview-c301a8d1--266f0598-d623-4c20-855b-ba738d578e40.lovable.app-1779549029299.png" },
     ],
     links: [
       {
