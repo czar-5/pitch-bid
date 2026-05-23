@@ -364,6 +364,14 @@ export type Database = {
         Returns: boolean
       }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
+      next_player: { Args: { _auction_id: string }; Returns: string }
+      place_bid: {
+        Args: { _auction_player_id: string; _team_id: string }
+        Returns: number
+      }
+      sell_current: { Args: { _auction_id: string }; Returns: undefined }
+      skip_current: { Args: { _auction_id: string }; Returns: undefined }
+      start_auction: { Args: { _auction_id: string }; Returns: undefined }
     }
     Enums: {
       app_role: "admin" | "manager" | "co_manager" | "viewer"
