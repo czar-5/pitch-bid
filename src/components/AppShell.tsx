@@ -1,5 +1,5 @@
 import { Link, Outlet, useRouter } from "@tanstack/react-router";
-import { Gavel, Users, UserRound, LogOut, Trophy } from "lucide-react";
+import { Gavel, Users, UserRound, LogOut, Trophy, CircleUser } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Toaster } from "@/components/ui/sonner";
