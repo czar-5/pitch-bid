@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
+import { TeamFormDialog } from "@/components/admin/TeamFormDialog";
 
 export const Route = createFileRoute("/_authenticated/teams")({
   component: TeamsPage,
@@ -28,7 +29,7 @@ function TeamsPage() {
           <p className="text-sm text-muted-foreground">Master list of teams.</p>
         </div>
         {isAdmin && (
-          <Button disabled><Plus className="h-4 w-4 mr-1" /> Create Team</Button>
+          <TeamFormDialog trigger={<Button><Plus className="h-4 w-4 mr-1" /> Create Team</Button>} />
         )}
       </div>
 
