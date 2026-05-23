@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Calendar, Coins, Gavel, Play, SkipForward, Check, ChevronsRight, Trash2, Users, Timer } from "lucide-react";
+import { ArrowLeft, Calendar, Coins, Gavel, Play, SkipForward, Check, ChevronsRight, Trash2, Users, Timer, CheckCircle2, Circle, StopCircle, AlertTriangle, Radio } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -89,7 +89,16 @@ function AuctionDetail() {
       const { error } = await supabase.rpc("start_auction", { _auction_id: auctionId });
       if (error) throw error;
     },
-    onSuccess: () => { toast.success("Auction started"); qc.invalidateQueries({ queryKey: ["auction", auctionId] }); qc.invalidateQueries({ queryKey: ["auction-players", auctionId] }); },
+    onSuccess: () => { toast.success("Lobby opened — waiting for team managers"); qc.invalidateQueries({ queryKey: ["auction", auctionId] }); },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const endAuction = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.rpc("end_auction", { _auction_id: auctionId });
+      if (error) throw error;
+    },
+    onSuccess: () => { toast.success("Auction ended"); qc.invalidateQueries({ queryKey: ["auction", auctionId] }); qc.invalidateQueries({ queryKey: ["auction-players", auctionId] }); },
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -97,7 +106,9 @@ function AuctionDetail() {
   if (!auctionQ.data) return <p className="text-muted-foreground">Auction not found.</p>;
   const a = auctionQ.data;
 
-  const isLive = a.status === "live";
+  const status = a.status as string;
+  const isLive = status === "live";
+  const isLobby = status === "lobby";
   const currentAp = playersQ.data?.find((p) => p.id === a.current_player_id) ?? null;
 
   return (
@@ -134,15 +145,45 @@ function AuctionDetail() {
               </AlertDialogContent>
             </AlertDialog>
           )}
+          {isAdmin && isLive && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="outline" size="sm" className="text-destructive">
+                  <StopCircle className="h-4 w-4 mr-1" /> End auction
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>End this auction now?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Any remaining players will be marked unsold and bidding will stop immediately. This cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={() => endAuction.mutate()}>End auction</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
         </div>
         {isAdmin && a.status === "upcoming" && (
           <div className="mt-4">
             <Button onClick={() => start.mutate()} disabled={start.isPending || (playersQ.data?.length ?? 0) === 0}>
-              <Play className="h-4 w-4 mr-1" /> Start auction
+              <Play className="h-4 w-4 mr-1" /> Open lobby
             </Button>
           </div>
         )}
       </div>
+
+      {isLobby && (
+        <LobbyRoom
+          auctionId={auctionId}
+          teams={teamsQ.data ?? []}
+          isAdmin={isAdmin}
+          userId={user?.id ?? null}
+        />
+      )}
 
       {isLive && (
         <LiveRoom
