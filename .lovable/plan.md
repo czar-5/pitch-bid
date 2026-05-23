@@ -1,22 +1,37 @@
-## Lobby teams: tap to expand and show roster
+## Add a bid-slab ladder to the auction header
 
-Change the lobby's team grid into an accordion. Each team row remains compact (logo, name, join tick), and tapping it expands to show players already sold to that team in the current auction.
+On the auction detail page, the header card (the one in your screenshot showing name, schedule, budget, baseline) does not communicate the bidding step rules. Add a compact visual at the bottom of that card that shows each slab boundary and the increment between them.
 
-### UI
+### Visual design
 
-- Replace the 3-col grid in `LobbyRoom` with a single-column shadcn `Accordion` (`type="single"`, `collapsible`).
-- Each `AccordionItem` header keeps the existing look: colored logo tile, team name, players-bought count badge, joined `CheckCircle2` / `Circle`. The chevron rotates on open.
-- `AccordionContent` shows:
-  - Budget remaining (small label).
-  - Player list: photo (or initials), name, role pill, sold price on the right.
-  - Empty state: "No players yet" when the team has nothing sold in this auction.
+A horizontal "ladder" rail spanning the full width of the card footer:
 
-### Data
+```text
+   +50            +100              +500
+●━━━━━━━━━●━━━━━━━━━━━━━━●━━━━━━━━━━━━━━▶
+500       1,000           5,000          ∞
+baseline                                  no cap
+```
 
-- Add a query in `LobbyRoom` keyed `["auction-team-roster", auctionId]` that reads `auction_players` where `auction_id = auctionId` and `status = 'sold'`, selecting `sold_team_id, sold_price, player:players(first_name,last_name,display_name,player_role,photo_url)`.
-- Group rows by `sold_team_id` in a `useMemo` and render the matching list inside each accordion item.
-- No schema or RLS changes — `auction_players_select_all` already permits the read.
+- A thin horizontal rule (`border-border`, 2px) runs across the card.
+- A filled circle (primary color) sits at each slab boundary: the baseline price, then each `min`/`max` from `bid_rules_json`. The final open-ended slab ends in a right-pointing chevron / arrow instead of a circle.
+- Below each dot: the price (e.g. `500`, `1,000`, `5,000`). The first one is labeled `Baseline`; the last gets `No cap`.
+- Above each segment, centered between its two dots: `+50`, `+100`, `+500` as small pill badges (`bg-muted`, monospace-ish, `text-xs`).
+- The ladder uses `flex` with each segment as `flex-1` so it scales responsively. On narrow viewports (<480px) it stacks the increment badge above and price below in a smaller variant.
+
+### Alternative considered
+
+A simple table of slabs (Range / Increment) was considered but rejected — the ladder reads in one glance, fits the broadcast feel of the rest of the page, and pairs naturally with the existing Baseline chip.
+
+### Scope
+
+- Only the upcoming/non-minimal header card. Hidden during live rounds (already inside the `{!minimal && ...}` block).
+- Read-only — no schema or RLS change. Pulls from `auction.bid_rules_json` and `auction.baseline_price` already loaded.
 
 ### Files
 
-- `src/routes/_authenticated/auctions_.$auctionId.tsx` — refactor `LobbyRoom` to the accordion layout and add the roster query.
+- `src/routes/_authenticated/auctions_.$auctionId.tsx`
+  - Add a `BidSlabLadder` component (same file, near the bottom with the other small components).
+  - Render `<BidSlabLadder baseline={a.baseline_price} rules={a.bid_rules_json} />` inside the header card, below the meta row (after the `Baseline` chip line, separated by a `border-t border-border pt-4 mt-4`).
+
+No other files change.
