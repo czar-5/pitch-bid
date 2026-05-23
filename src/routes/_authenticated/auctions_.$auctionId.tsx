@@ -770,12 +770,12 @@ function BidSlabLadder({
   if (!rules?.length) return null;
   const sorted = [...rules].sort((a, b) => a.min - b.min);
   // Boundaries: baseline, then each rule.max (last one is null = ∞)
-  const stops: Array<{ value: number | null; label: string; sub?: string }> = [
-    { value: baseline, label: baseline.toLocaleString(), sub: "Baseline" },
+  const stops: Array<{ value: number | null; label: string }> = [
+    { value: baseline, label: baseline.toLocaleString() },
   ];
   sorted.forEach((r, i) => {
     if (r.max == null) {
-      stops.push({ value: null, label: "∞", sub: "No cap" });
+      stops.push({ value: null, label: "∞" });
     } else {
       stops.push({ value: r.max, label: r.max.toLocaleString() });
     }
@@ -814,7 +814,6 @@ function BidSlabLadder({
               {/* labels row */}
               <div className={`mt-1 flex flex-col ${isLast ? "items-center" : "items-start"}`}>
                 <span className="text-xs font-semibold tabular-nums">{stop.label}</span>
-                {stop.sub && <span className="text-[10px] text-muted-foreground">{stop.sub}</span>}
               </div>
             </div>
           );
