@@ -16,8 +16,8 @@ import { Route as AuthenticatedTeamsRouteImport } from './routes/_authenticated/
 import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
 import { Route as AuthenticatedPlayersRouteImport } from './routes/_authenticated/players'
 import { Route as AuthenticatedAuctionsRouteImport } from './routes/_authenticated/auctions'
-import { Route as AuthenticatedTeamsTeamIdRouteImport } from './routes/_authenticated/teams.$teamId'
-import { Route as AuthenticatedAuctionsAuctionIdRouteImport } from './routes/_authenticated/auctions.$auctionId'
+import { Route as AuthenticatedTeamsTeamIdRouteImport } from './routes/_authenticated/teams_.$teamId'
+import { Route as AuthenticatedAuctionsAuctionIdRouteImport } from './routes/_authenticated/auctions_.$auctionId'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -55,34 +55,34 @@ const AuthenticatedAuctionsRoute = AuthenticatedAuctionsRouteImport.update({
 } as any)
 const AuthenticatedTeamsTeamIdRoute =
   AuthenticatedTeamsTeamIdRouteImport.update({
-    id: '/$teamId',
-    path: '/$teamId',
-    getParentRoute: () => AuthenticatedTeamsRoute,
+    id: '/teams_/$teamId',
+    path: '/teams/$teamId',
+    getParentRoute: () => AuthenticatedRoute,
   } as any)
 const AuthenticatedAuctionsAuctionIdRoute =
   AuthenticatedAuctionsAuctionIdRouteImport.update({
-    id: '/$auctionId',
-    path: '/$auctionId',
-    getParentRoute: () => AuthenticatedAuctionsRoute,
+    id: '/auctions_/$auctionId',
+    path: '/auctions/$auctionId',
+    getParentRoute: () => AuthenticatedRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
-  '/auctions': typeof AuthenticatedAuctionsRouteWithChildren
+  '/auctions': typeof AuthenticatedAuctionsRoute
   '/players': typeof AuthenticatedPlayersRoute
   '/profile': typeof AuthenticatedProfileRoute
-  '/teams': typeof AuthenticatedTeamsRouteWithChildren
+  '/teams': typeof AuthenticatedTeamsRoute
   '/auctions/$auctionId': typeof AuthenticatedAuctionsAuctionIdRoute
   '/teams/$teamId': typeof AuthenticatedTeamsTeamIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
-  '/auctions': typeof AuthenticatedAuctionsRouteWithChildren
+  '/auctions': typeof AuthenticatedAuctionsRoute
   '/players': typeof AuthenticatedPlayersRoute
   '/profile': typeof AuthenticatedProfileRoute
-  '/teams': typeof AuthenticatedTeamsRouteWithChildren
+  '/teams': typeof AuthenticatedTeamsRoute
   '/auctions/$auctionId': typeof AuthenticatedAuctionsAuctionIdRoute
   '/teams/$teamId': typeof AuthenticatedTeamsTeamIdRoute
 }
@@ -91,12 +91,12 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteWithChildren
   '/login': typeof LoginRoute
-  '/_authenticated/auctions': typeof AuthenticatedAuctionsRouteWithChildren
+  '/_authenticated/auctions': typeof AuthenticatedAuctionsRoute
   '/_authenticated/players': typeof AuthenticatedPlayersRoute
   '/_authenticated/profile': typeof AuthenticatedProfileRoute
-  '/_authenticated/teams': typeof AuthenticatedTeamsRouteWithChildren
-  '/_authenticated/auctions/$auctionId': typeof AuthenticatedAuctionsAuctionIdRoute
-  '/_authenticated/teams/$teamId': typeof AuthenticatedTeamsTeamIdRoute
+  '/_authenticated/teams': typeof AuthenticatedTeamsRoute
+  '/_authenticated/auctions_/$auctionId': typeof AuthenticatedAuctionsAuctionIdRoute
+  '/_authenticated/teams_/$teamId': typeof AuthenticatedTeamsTeamIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -128,8 +128,8 @@ export interface FileRouteTypes {
     | '/_authenticated/players'
     | '/_authenticated/profile'
     | '/_authenticated/teams'
-    | '/_authenticated/auctions/$auctionId'
-    | '/_authenticated/teams/$teamId'
+    | '/_authenticated/auctions_/$auctionId'
+    | '/_authenticated/teams_/$teamId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -189,59 +189,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAuctionsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
-    '/_authenticated/teams/$teamId': {
-      id: '/_authenticated/teams/$teamId'
-      path: '/$teamId'
+    '/_authenticated/teams_/$teamId': {
+      id: '/_authenticated/teams_/$teamId'
+      path: '/teams/$teamId'
       fullPath: '/teams/$teamId'
       preLoaderRoute: typeof AuthenticatedTeamsTeamIdRouteImport
-      parentRoute: typeof AuthenticatedTeamsRoute
+      parentRoute: typeof AuthenticatedRoute
     }
-    '/_authenticated/auctions/$auctionId': {
-      id: '/_authenticated/auctions/$auctionId'
-      path: '/$auctionId'
+    '/_authenticated/auctions_/$auctionId': {
+      id: '/_authenticated/auctions_/$auctionId'
+      path: '/auctions/$auctionId'
       fullPath: '/auctions/$auctionId'
       preLoaderRoute: typeof AuthenticatedAuctionsAuctionIdRouteImport
-      parentRoute: typeof AuthenticatedAuctionsRoute
+      parentRoute: typeof AuthenticatedRoute
     }
   }
 }
 
-interface AuthenticatedAuctionsRouteChildren {
+interface AuthenticatedRouteChildren {
+  AuthenticatedAuctionsRoute: typeof AuthenticatedAuctionsRoute
+  AuthenticatedPlayersRoute: typeof AuthenticatedPlayersRoute
+  AuthenticatedProfileRoute: typeof AuthenticatedProfileRoute
+  AuthenticatedTeamsRoute: typeof AuthenticatedTeamsRoute
   AuthenticatedAuctionsAuctionIdRoute: typeof AuthenticatedAuctionsAuctionIdRoute
-}
-
-const AuthenticatedAuctionsRouteChildren: AuthenticatedAuctionsRouteChildren = {
-  AuthenticatedAuctionsAuctionIdRoute: AuthenticatedAuctionsAuctionIdRoute,
-}
-
-const AuthenticatedAuctionsRouteWithChildren =
-  AuthenticatedAuctionsRoute._addFileChildren(
-    AuthenticatedAuctionsRouteChildren,
-  )
-
-interface AuthenticatedTeamsRouteChildren {
   AuthenticatedTeamsTeamIdRoute: typeof AuthenticatedTeamsTeamIdRoute
 }
 
-const AuthenticatedTeamsRouteChildren: AuthenticatedTeamsRouteChildren = {
-  AuthenticatedTeamsTeamIdRoute: AuthenticatedTeamsTeamIdRoute,
-}
-
-const AuthenticatedTeamsRouteWithChildren =
-  AuthenticatedTeamsRoute._addFileChildren(AuthenticatedTeamsRouteChildren)
-
-interface AuthenticatedRouteChildren {
-  AuthenticatedAuctionsRoute: typeof AuthenticatedAuctionsRouteWithChildren
-  AuthenticatedPlayersRoute: typeof AuthenticatedPlayersRoute
-  AuthenticatedProfileRoute: typeof AuthenticatedProfileRoute
-  AuthenticatedTeamsRoute: typeof AuthenticatedTeamsRouteWithChildren
-}
-
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
-  AuthenticatedAuctionsRoute: AuthenticatedAuctionsRouteWithChildren,
+  AuthenticatedAuctionsRoute: AuthenticatedAuctionsRoute,
   AuthenticatedPlayersRoute: AuthenticatedPlayersRoute,
   AuthenticatedProfileRoute: AuthenticatedProfileRoute,
-  AuthenticatedTeamsRoute: AuthenticatedTeamsRouteWithChildren,
+  AuthenticatedTeamsRoute: AuthenticatedTeamsRoute,
+  AuthenticatedAuctionsAuctionIdRoute: AuthenticatedAuctionsAuctionIdRoute,
+  AuthenticatedTeamsTeamIdRoute: AuthenticatedTeamsTeamIdRoute,
 }
 
 const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
@@ -256,3 +236,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

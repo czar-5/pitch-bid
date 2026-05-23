@@ -12,7 +12,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
-export const Route = createFileRoute("/_authenticated/auctions/$auctionId")({
+export const Route = createFileRoute("/_authenticated/auctions_/$auctionId")({
   component: AuctionDetail,
 });
 
