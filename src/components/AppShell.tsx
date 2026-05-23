@@ -1,5 +1,5 @@
 import { Link, Outlet, useRouter } from "@tanstack/react-router";
-import { Gavel, Users, UserRound, LogOut, Trophy } from "lucide-react";
+import { Gavel, Users, UserRound, LogOut, Trophy, CircleUser } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Toaster } from "@/components/ui/sonner";
@@ -40,9 +40,14 @@ export function AppShell() {
             ))}
           </nav>
           <div className="flex items-center gap-2">
-            <span className="hidden sm:inline text-xs text-muted-foreground truncate max-w-[140px]">
-              {user?.email}
-            </span>
+            <Link
+              to="/profile"
+              className="hidden sm:flex items-center gap-1.5 rounded-md px-2 py-1.5 text-xs text-muted-foreground hover:bg-secondary hover:text-foreground"
+              activeProps={{ className: "hidden sm:flex items-center gap-1.5 rounded-md px-2 py-1.5 text-xs bg-secondary text-foreground font-medium" }}
+            >
+              <CircleUser className="h-4 w-4" />
+              <span className="truncate max-w-[100px]">{user?.email}</span>
+            </Link>
             <Button
               size="icon"
               variant="ghost"
