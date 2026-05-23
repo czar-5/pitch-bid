@@ -182,6 +182,7 @@ function AuctionDetail() {
             </Button>
           </div>
         )}
+        <BidSlabLadder baseline={a.baseline_price} rules={a.bid_rules_json as Array<{ min: number; max: number | null; increment: number }>} />
       </div>
       )}
 
