@@ -11,7 +11,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+// (Accordion replaced by browser-tab style TeamsTabs component below)
 
 export const Route = createFileRoute("/_authenticated/auctions_/$auctionId")({
   component: AuctionDetail,
@@ -211,19 +211,7 @@ function AuctionDetail() {
         <h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-3 flex items-center gap-2">
           <Users className="h-4 w-4" /> Teams ({teamsQ.data?.length ?? 0})
         </h2>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {teamsQ.data?.map((at) => (
-            <div key={at.id} className="rounded-lg border border-border bg-card p-3 flex items-center gap-3">
-              <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center text-xs font-bold" style={{ background: at.team?.primary_color ?? undefined }}>
-                {at.team?.logo_url ? <img src={at.team.logo_url} alt="" className="h-full w-full rounded-lg object-cover" /> : at.team?.name.slice(0, 2).toUpperCase()}
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="font-medium truncate">{at.team?.name}</p>
-                <p className="text-xs text-muted-foreground">Budget {at.budget_remaining.toLocaleString()} · {at.players_bought} bought</p>
-              </div>
-            </div>
-          ))}
-        </div>
+        <TeamsTabs auctionId={auctionId} teams={teamsQ.data ?? []} />
       </section>
       )}
 
