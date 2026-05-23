@@ -30,10 +30,11 @@ type WizardState = {
 };
 
 const DEFAULT_BID_RULES: BidRule[] = [
-  { min: 0, max: 1000, increment: 50 },
-  { min: 1000, max: 5000, increment: 100 },
-  { min: 5000, max: null, increment: 500 },
+  { min: 0, max: null, increment: 100 },
 ];
+
+const NO_SPIN =
+  "[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none";
 
 const STEPS = ["Basics", "Money rules", "Teams", "Players", "Review"] as const;
 
@@ -98,7 +99,11 @@ export function AuctionWizardDialog({ trigger }: { trigger: React.ReactNode }) {
           team_budget: state.team_budget,
           baseline_price: state.baseline_price,
           round_closure_seconds: state.round_closure_seconds,
-          bid_rules_json: state.bid_rules,
+          bid_rules_json: state.bid_rules.map((r, i, arr) => ({
+            min: i === 0 ? state.baseline_price : (arr[i - 1].max ?? state.baseline_price),
+            max: r.max,
+            increment: r.increment,
+          })),
           status: "upcoming",
         })
         .select("id")
@@ -222,8 +227,15 @@ function StepMoney({ state, setState }: { state: WizardState; setState: Setter }
   function updRule(i: number, patch: Partial<BidRule>) {
     setState((s) => ({ ...s, bid_rules: s.bid_rules.map((r, idx) => (idx === i ? { ...r, ...patch } : r)) }));
   }
-  function addRule() {
-    setState((s) => ({ ...s, bid_rules: [...s.bid_rules, { min: 0, max: null, increment: 100 }] }));
+  function insertBefore(i: number) {
+    setState((s) => ({
+      ...s,
+      bid_rules: [
+        ...s.bid_rules.slice(0, i),
+        { min: 0, max: 0, increment: s.bid_rules[i]?.increment ?? 100 },
+        ...s.bid_rules.slice(i),
+      ],
+    }));
   }
   function delRule(i: number) {
     setState((s) => ({ ...s, bid_rules: s.bid_rules.filter((_, idx) => idx !== i) }));
@@ -231,24 +243,56 @@ function StepMoney({ state, setState }: { state: WizardState; setState: Setter }
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-3 gap-3">
-        <div><Label>Team budget</Label><Input type="number" value={state.team_budget} onChange={(e) => setState((s) => ({ ...s, team_budget: Number(e.target.value) }))} /></div>
-        <div><Label>Baseline price</Label><Input type="number" value={state.baseline_price} onChange={(e) => setState((s) => ({ ...s, baseline_price: Number(e.target.value) }))} /></div>
-        <div><Label>Round closure (sec)</Label><Input type="number" value={state.round_closure_seconds} onChange={(e) => setState((s) => ({ ...s, round_closure_seconds: Number(e.target.value) }))} /></div>
+        <div><Label>Team budget</Label><Input type="number" className={NO_SPIN} value={state.team_budget} onChange={(e) => setState((s) => ({ ...s, team_budget: Number(e.target.value) }))} /></div>
+        <div><Label>Baseline price</Label><Input type="number" className={NO_SPIN} value={state.baseline_price} onChange={(e) => setState((s) => ({ ...s, baseline_price: Number(e.target.value) }))} /></div>
+        <div><Label>Round closure (sec)</Label><Input type="number" className={NO_SPIN} value={state.round_closure_seconds} onChange={(e) => setState((s) => ({ ...s, round_closure_seconds: Number(e.target.value) }))} /></div>
       </div>
       <div>
-        <div className="flex items-center justify-between mb-2">
-          <Label>Bid increment table</Label>
-          <Button type="button" variant="outline" size="sm" onClick={addRule}><Plus className="h-3 w-3 mr-1" /> Row</Button>
-        </div>
-        <div className="space-y-2">
-          {state.bid_rules.map((r, i) => (
-            <div key={i} className="grid grid-cols-[1fr_1fr_1fr_auto] gap-2 items-center">
-              <Input type="number" placeholder="Min" value={r.min} onChange={(e) => updRule(i, { min: Number(e.target.value) })} />
-              <Input type="number" placeholder="Max (blank = ∞)" value={r.max ?? ""} onChange={(e) => updRule(i, { max: e.target.value === "" ? null : Number(e.target.value) })} />
-              <Input type="number" placeholder="Increment" value={r.increment} onChange={(e) => updRule(i, { increment: Number(e.target.value) })} />
-              <Button type="button" variant="ghost" size="icon" onClick={() => delRule(i)} className="text-destructive"><Trash2 className="h-4 w-4" /></Button>
-            </div>
-          ))}
+        <Label>Bid increment</Label>
+        <div className="mt-2 space-y-2">
+          <div className="grid grid-cols-[2rem_3rem_1fr_1fr_2rem] gap-2 items-center text-xs text-muted-foreground px-1">
+            <span />
+            <span />
+            <span />
+            <span>Value</span>
+            <span />
+          </div>
+          {state.bid_rules.map((r, i) => {
+            const isLast = i === state.bid_rules.length - 1;
+            return (
+              <div key={i} className="grid grid-cols-[2rem_3rem_1fr_1fr_2rem] gap-2 items-center">
+                <Button type="button" variant="outline" size="icon" className="h-8 w-8" onClick={() => insertBefore(i)} title="Insert slab before">
+                  <Plus className="h-4 w-4" />
+                </Button>
+                <span className="text-sm text-muted-foreground">upto</span>
+                {isLast ? (
+                  <Input value="Max" disabled />
+                ) : (
+                  <Input
+                    type="number"
+                    className={NO_SPIN}
+                    placeholder="Ceiling"
+                    value={r.max ?? ""}
+                    onChange={(e) => updRule(i, { max: e.target.value === "" ? null : Number(e.target.value) })}
+                  />
+                )}
+                <Input
+                  type="number"
+                  className={NO_SPIN}
+                  placeholder="Increment"
+                  value={r.increment}
+                  onChange={(e) => updRule(i, { increment: Number(e.target.value) })}
+                />
+                {isLast ? (
+                  <span />
+                ) : (
+                  <Button type="button" variant="ghost" size="icon" onClick={() => delRule(i)} className="text-destructive h-8 w-8">
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>
