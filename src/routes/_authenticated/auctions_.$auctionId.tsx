@@ -759,3 +759,67 @@ function TeamsTabs({
     </div>
   );
 }
+
+function BidSlabLadder({
+  baseline,
+  rules,
+}: {
+  baseline: number;
+  rules: Array<{ min: number; max: number | null; increment: number }>;
+}) {
+  if (!rules?.length) return null;
+  const sorted = [...rules].sort((a, b) => a.min - b.min);
+  // Boundaries: baseline, then each rule.max (last one is null = ∞)
+  const stops: Array<{ value: number | null; label: string; sub?: string }> = [
+    { value: baseline, label: baseline.toLocaleString(), sub: "Baseline" },
+  ];
+  sorted.forEach((r, i) => {
+    if (r.max == null) {
+      stops.push({ value: null, label: "∞", sub: "No cap" });
+    } else {
+      stops.push({ value: r.max, label: r.max.toLocaleString() });
+    }
+    // ensure increments align with segments; nothing to push here
+    void i;
+  });
+  // Number of segments = stops.length - 1, which should equal sorted.length
+  return (
+    <div className="mt-4 border-t border-border pt-4">
+      <p className="mb-3 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Bid increments</p>
+      <div className="flex items-stretch">
+        {stops.map((stop, i) => {
+          const isLast = i === stops.length - 1;
+          const isOpen = stop.value == null;
+          return (
+            <div key={i} className={isLast ? "flex flex-col items-center" : "flex flex-1 flex-col"}>
+              {/* increments row */}
+              <div className="flex h-5 items-end">
+                {!isLast && (
+                  <div className="flex w-full justify-center">
+                    <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold tabular-nums text-foreground">
+                      +{sorted[i].increment.toLocaleString()}
+                    </span>
+                  </div>
+                )}
+              </div>
+              {/* rail row */}
+              <div className="relative flex h-3 items-center">
+                {isOpen ? (
+                  <div className="flex h-3 w-3 items-center justify-center text-primary">▶</div>
+                ) : (
+                  <div className="h-2.5 w-2.5 shrink-0 rounded-full bg-primary shadow-[0_0_8px_var(--primary)]" />
+                )}
+                {!isLast && <div className="h-[2px] flex-1 bg-border" />}
+              </div>
+              {/* labels row */}
+              <div className={`mt-1 flex flex-col ${isLast ? "items-center" : "items-start"}`}>
+                <span className="text-xs font-semibold tabular-nums">{stop.label}</span>
+                {stop.sub && <span className="text-[10px] text-muted-foreground">{stop.sub}</span>}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
