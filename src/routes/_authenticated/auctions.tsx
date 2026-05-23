@@ -24,6 +24,17 @@ type Auction = {
 
 function AuctionsPage() {
   const { isAdmin } = useAuth();
+  const qc = useQueryClient();
+  const del = useMutation({
+    mutationFn: async (id: string) => {
+      await supabase.from("auction_players").delete().eq("auction_id", id);
+      await supabase.from("auction_teams").delete().eq("auction_id", id);
+      const { error } = await supabase.from("auctions").delete().eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => { toast.success("Auction deleted"); qc.invalidateQueries({ queryKey: ["auctions"] }); },
+    onError: (e: Error) => toast.error(e.message),
+  });
   const { data, isLoading } = useQuery({
     queryKey: ["auctions"],
     queryFn: async () => {
