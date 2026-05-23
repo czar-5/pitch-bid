@@ -21,23 +21,24 @@ interface ProfileData {
 function ProfilePage() {
   const { user, roles } = useAuth();
   const [profile, setProfile] = useState<ProfileData | null>(null);
+  const [fetchedRoles, setFetchedRoles] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function loadProfile() {
       if (!user) return;
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("name, email, created_at")
-        .eq("id", user.id)
-        .single();
-      if (!error && data) {
-        setProfile(data);
-      }
+      const [{ data: p }, { data: r }] = await Promise.all([
+        supabase.from("profiles").select("name, email, created_at").eq("id", user.id).single(),
+        supabase.from("user_roles").select("role").eq("user_id", user.id),
+      ]);
+      if (p) setProfile(p);
+      if (r) setFetchedRoles(r.map((x) => x.role as string));
       setLoading(false);
     }
     loadProfile();
   }, [user]);
+
+  const displayRoles = (roles && roles.length > 0 ? roles : fetchedRoles) as string[];
 
   const displayName = profile?.name || user?.email?.split("@")[0] || "User";
   const initials = displayName
@@ -81,7 +82,7 @@ function ProfilePage() {
                 {loading ? (
                   <Skeleton className="h-5 w-16" />
                 ) : (
-                  roles.map((role) => (
+                  displayRoles.map((role) => (
                     <Badge
                       key={role}
                       className={roleColor[role] || "bg-muted"}
