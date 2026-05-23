@@ -97,10 +97,14 @@ function TeamDetail() {
           <h1 className="text-2xl font-bold">{team.name}</h1>
           <p className="text-xs text-muted-foreground font-mono">{team.primary_color}</p>
         </div>
-        {isAdmin && (
+        {(isAdmin || isTeamManager) && (
           <div className="flex gap-2">
-            <TeamFormDialog team={team} trigger={<Button variant="outline" size="sm"><Pencil className="h-4 w-4 mr-1" /> Edit</Button>} />
-            <AlertDialog>
+            <TeamFormDialog
+              team={team}
+              restricted={!isAdmin}
+              trigger={<Button variant="outline" size="sm"><Pencil className="h-4 w-4 mr-1" /> Edit</Button>}
+            />
+            {isAdmin && <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button variant="outline" size="sm" className="text-destructive"><Trash2 className="h-4 w-4 mr-1" /> Delete</Button>
               </AlertDialogTrigger>
@@ -114,7 +118,7 @@ function TeamDetail() {
                   <AlertDialogAction onClick={() => del.mutate()}>Delete</AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
-            </AlertDialog>
+            </AlertDialog>}
           </div>
         )}
       </div>
