@@ -119,7 +119,7 @@ function Section({
               </div>
             </Link>
             {isAdmin && (
-              <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition">
+              <div className="mt-3 flex justify-end gap-1 border-t border-border pt-2">
                 {tone === "upcoming" && (
                   <Button
                     size="icon"
@@ -133,7 +133,7 @@ function Section({
                 )}
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive">
+                    <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>
                   </AlertDialogTrigger>
