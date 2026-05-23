@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthenticatedUsersRouteImport } from './routes/_authenticated/users'
 import { Route as AuthenticatedTeamsRouteImport } from './routes/_authenticated/teams'
 import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
 import { Route as AuthenticatedPlayersRouteImport } from './routes/_authenticated/players'
@@ -32,6 +33,11 @@ const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedUsersRoute = AuthenticatedUsersRouteImport.update({
+  id: '/users',
+  path: '/users',
+  getParentRoute: () => AuthenticatedRoute,
 } as any)
 const AuthenticatedTeamsRoute = AuthenticatedTeamsRouteImport.update({
   id: '/teams',
@@ -73,6 +79,7 @@ export interface FileRoutesByFullPath {
   '/players': typeof AuthenticatedPlayersRoute
   '/profile': typeof AuthenticatedProfileRoute
   '/teams': typeof AuthenticatedTeamsRouteWithChildren
+  '/users': typeof AuthenticatedUsersRoute
   '/auctions/$auctionId': typeof AuthenticatedAuctionsAuctionIdRoute
   '/teams/$teamId': typeof AuthenticatedTeamsTeamIdRoute
 }
@@ -83,6 +90,7 @@ export interface FileRoutesByTo {
   '/players': typeof AuthenticatedPlayersRoute
   '/profile': typeof AuthenticatedProfileRoute
   '/teams': typeof AuthenticatedTeamsRouteWithChildren
+  '/users': typeof AuthenticatedUsersRoute
   '/auctions/$auctionId': typeof AuthenticatedAuctionsAuctionIdRoute
   '/teams/$teamId': typeof AuthenticatedTeamsTeamIdRoute
 }
@@ -95,6 +103,7 @@ export interface FileRoutesById {
   '/_authenticated/players': typeof AuthenticatedPlayersRoute
   '/_authenticated/profile': typeof AuthenticatedProfileRoute
   '/_authenticated/teams': typeof AuthenticatedTeamsRouteWithChildren
+  '/_authenticated/users': typeof AuthenticatedUsersRoute
   '/_authenticated/auctions/$auctionId': typeof AuthenticatedAuctionsAuctionIdRoute
   '/_authenticated/teams/$teamId': typeof AuthenticatedTeamsTeamIdRoute
 }
@@ -107,6 +116,7 @@ export interface FileRouteTypes {
     | '/players'
     | '/profile'
     | '/teams'
+    | '/users'
     | '/auctions/$auctionId'
     | '/teams/$teamId'
   fileRoutesByTo: FileRoutesByTo
@@ -117,6 +127,7 @@ export interface FileRouteTypes {
     | '/players'
     | '/profile'
     | '/teams'
+    | '/users'
     | '/auctions/$auctionId'
     | '/teams/$teamId'
   id:
@@ -128,6 +139,7 @@ export interface FileRouteTypes {
     | '/_authenticated/players'
     | '/_authenticated/profile'
     | '/_authenticated/teams'
+    | '/_authenticated/users'
     | '/_authenticated/auctions/$auctionId'
     | '/_authenticated/teams/$teamId'
   fileRoutesById: FileRoutesById
@@ -160,6 +172,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/users': {
+      id: '/_authenticated/users'
+      path: '/users'
+      fullPath: '/users'
+      preLoaderRoute: typeof AuthenticatedUsersRouteImport
+      parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/teams': {
       id: '/_authenticated/teams'
@@ -235,6 +254,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedPlayersRoute: typeof AuthenticatedPlayersRoute
   AuthenticatedProfileRoute: typeof AuthenticatedProfileRoute
   AuthenticatedTeamsRoute: typeof AuthenticatedTeamsRouteWithChildren
+  AuthenticatedUsersRoute: typeof AuthenticatedUsersRoute
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
@@ -242,6 +262,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedPlayersRoute: AuthenticatedPlayersRoute,
   AuthenticatedProfileRoute: AuthenticatedProfileRoute,
   AuthenticatedTeamsRoute: AuthenticatedTeamsRouteWithChildren,
+  AuthenticatedUsersRoute: AuthenticatedUsersRoute,
 }
 
 const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
