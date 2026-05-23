@@ -44,6 +44,7 @@ export function TeamFormDialog({ trigger, team, onSuccess }: TeamFormDialogProps
   const [pending, setPending] = useState<PendingMember[]>([]);
   const [newEmail, setNewEmail] = useState("");
   const [newRole, setNewRole] = useState<MembershipRole>("manager");
+  const [emailError, setEmailError] = useState<string | null>(null);
   const qc = useQueryClient();
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -64,6 +65,7 @@ export function TeamFormDialog({ trigger, team, onSuccess }: TeamFormDialogProps
       setPending([]);
       setNewEmail("");
       setNewRole("manager");
+      setEmailError(null);
     }
   }, [open, team, form]);
 
@@ -99,10 +101,28 @@ export function TeamFormDialog({ trigger, team, onSuccess }: TeamFormDialogProps
     return profile.id;
   }
 
+  // Returns the conflicting team name if `userId` is already in another team, else null.
+  async function findConflictTeam(userId: string): Promise<string | null> {
+    const { data, error } = await supabase
+      .from("team_members")
+      .select("team_id, teams:team_id(name)")
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (error) return null;
+    if (!data) return null;
+    if (team && data.team_id === team.id) return null; // same team, fine
+    const t = data.teams as unknown as { name: string } | null;
+    return t?.name ?? "another team";
+  }
+
   const addExistingMember = useMutation({
     mutationFn: async (m: PendingMember) => {
       if (!team) throw new Error("Save team first");
       const userId = await resolveEmailToUserId(m.email);
+      const conflict = await findConflictTeam(userId);
+      if (conflict) {
+        throw new Error(`This account already manages ${conflict === "another team" ? "another team" : `team "${conflict}"`}`);
+      }
       const { error } = await supabase.from("team_members")
         .insert({ team_id: team.id, user_id: userId, membership_role: m.role });
       if (error) throw error;
@@ -110,9 +130,10 @@ export function TeamFormDialog({ trigger, team, onSuccess }: TeamFormDialogProps
     onSuccess: () => {
       toast.success("Member added");
       setNewEmail("");
+      setEmailError(null);
       qc.invalidateQueries({ queryKey: ["team-members", team?.id] });
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => setEmailError(e.message),
   });
 
   const removeExistingMember = useMutation({
@@ -133,35 +154,56 @@ export function TeamFormDialog({ trigger, team, onSuccess }: TeamFormDialogProps
           ? [{ email: typed, role: newRole }]
           : [];
 
+      // Pre-validate every email we're about to insert so we can surface a clean
+      // inline error instead of half-saving and toasting a constraint failure.
+      const toInsert: PendingMember[] = team
+        ? extraPending
+        : [...pending, ...extraPending];
+
+      for (const m of toInsert) {
+        try {
+          const userId = await resolveEmailToUserId(m.email);
+          const conflict = await findConflictTeam(userId);
+          if (conflict) {
+            const msg = `${m.email}: this account already manages ${conflict === "another team" ? "another team" : `team "${conflict}"`}`;
+            // Surface inline if it's the typed-but-not-added email; else throw.
+            if (typed && m.email === typed) {
+              setEmailError(msg);
+              throw new Error("__inline__");
+            }
+            throw new Error(msg);
+          }
+        } catch (e) {
+          if ((e as Error).message === "__inline__") throw e;
+          // Re-resolve errors (unknown email, etc.) should also surface inline
+          // for the typed email so the dialog stays open.
+          if (typed && m.email === typed) {
+            setEmailError((e as Error).message);
+            throw new Error("__inline__");
+          }
+          throw e;
+        }
+      }
+
       if (team) {
         const { error } = await supabase.from("teams").update(values).eq("id", team.id);
         if (error) throw error;
-        // If editing and user typed an email without clicking +, add them now
         for (const m of extraPending) {
-          try {
-            const userId = await resolveEmailToUserId(m.email);
-            const { error: mErr } = await supabase.from("team_members")
-              .insert({ team_id: team.id, user_id: userId, membership_role: m.role });
-            if (mErr) throw mErr;
-          } catch (e) {
-            toast.error(`${m.email}: ${(e as Error).message}`);
-          }
+          const userId = await resolveEmailToUserId(m.email);
+          const { error: mErr } = await supabase.from("team_members")
+            .insert({ team_id: team.id, user_id: userId, membership_role: m.role });
+          if (mErr) throw mErr;
         }
         return team.id;
       } else {
         const { data, error } = await supabase.from("teams").insert(values).select("id").single();
         if (error) throw error;
         const newId = data.id as string;
-        // Insert pending members for the new team
         for (const m of [...pending, ...extraPending]) {
-          try {
-            const userId = await resolveEmailToUserId(m.email);
-            const { error: mErr } = await supabase.from("team_members")
-              .insert({ team_id: newId, user_id: userId, membership_role: m.role });
-            if (mErr) throw mErr;
-          } catch (e) {
-            toast.error(`${m.email}: ${(e as Error).message}`);
-          }
+          const userId = await resolveEmailToUserId(m.email);
+          const { error: mErr } = await supabase.from("team_members")
+            .insert({ team_id: newId, user_id: userId, membership_role: m.role });
+          if (mErr) throw mErr;
         }
         return newId;
       }
@@ -173,7 +215,10 @@ export function TeamFormDialog({ trigger, team, onSuccess }: TeamFormDialogProps
       setOpen(false);
       onSuccess?.();
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => {
+      if (e.message === "__inline__") return; // already shown inline
+      toast.error(e.message);
+    },
   });
 
   function addPending() {
@@ -299,7 +344,7 @@ export function TeamFormDialog({ trigger, team, onSuccess }: TeamFormDialogProps
                   type="email"
                   placeholder="user@email.com"
                   value={newEmail}
-                  onChange={(e) => setNewEmail(e.target.value)}
+                  onChange={(e) => { setNewEmail(e.target.value); if (emailError) setEmailError(null); }}
                   className="flex-1"
                 />
                 <Select value={newRole} onValueChange={(v) => setNewRole(v as MembershipRole)}>
@@ -318,13 +363,30 @@ export function TeamFormDialog({ trigger, team, onSuccess }: TeamFormDialogProps
                     if (team) {
                       addExistingMember.mutate({ email: newEmail, role: newRole });
                     } else {
-                      addPending();
+                      // Pre-check duplication for create mode too
+                      (async () => {
+                        try {
+                          const userId = await resolveEmailToUserId(newEmail);
+                          const conflict = await findConflictTeam(userId);
+                          if (conflict) {
+                            setEmailError(`This account already manages ${conflict === "another team" ? "another team" : `team "${conflict}"`}`);
+                            return;
+                          }
+                          addPending();
+                          setEmailError(null);
+                        } catch (e) {
+                          setEmailError((e as Error).message);
+                        }
+                      })();
                     }
                   }}
                 >
                   {addExistingMember.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
                 </Button>
               </div>
+              {emailError && (
+                <p className="text-xs font-medium text-destructive pt-1">{emailError}</p>
+              )}
               {!team && (
                 <p className="text-[11px] text-muted-foreground">
                   Managers will be added after the team is created.
