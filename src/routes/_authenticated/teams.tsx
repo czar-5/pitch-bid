@@ -24,10 +24,23 @@ function TeamsPage() {
     queryKey: ["my-managed-teams", user?.id],
     enabled: !!user?.id,
     queryFn: async () => {
+      const candidateUserIds = new Set<string>([user!.id]);
+      const email = user!.email?.trim().toLowerCase();
+
+      if (email) {
+        const { data: profile, error: profileError } = await supabase
+          .from("profiles")
+          .select("id")
+          .eq("email", email)
+          .maybeSingle();
+        if (profileError) throw profileError;
+        if (profile?.id) candidateUserIds.add(profile.id);
+      }
+
       const { data, error } = await supabase
         .from("team_members")
         .select("team_id")
-        .eq("user_id", user!.id)
+        .in("user_id", Array.from(candidateUserIds))
         .eq("membership_role", "manager");
       if (error) throw error;
       return new Set((data ?? []).map((r) => r.team_id));
