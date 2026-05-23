@@ -21,6 +21,7 @@ function LoginPage() {
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
+  const [needsVerify, setNeedsVerify] = useState(false);
 
   useEffect(() => {
     if (!loading && isAuthenticated) router.navigate({ to: "/auctions" });
@@ -29,10 +30,20 @@ function LoginPage() {
   async function signIn(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
+    setNeedsVerify(false);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setBusy(false);
-    if (error) toast.error(error.message);
-    else router.navigate({ to: "/auctions" });
+    if (error) {
+      const code = (error as { code?: string }).code;
+      if (code === "email_not_confirmed" || /confirm/i.test(error.message)) {
+        setNeedsVerify(true);
+        toast.error("Please verify your email before signing in. Check your inbox for the confirmation link.");
+      } else {
+        toast.error(error.message);
+      }
+    } else {
+      router.navigate({ to: "/auctions" });
+    }
   }
 
   async function signUp(e: React.FormEvent) {
@@ -48,7 +59,26 @@ function LoginPage() {
     });
     setBusy(false);
     if (error) toast.error(error.message);
-    else toast.success("Account created! Check your email to confirm, then sign in.");
+    else {
+      setNeedsVerify(true);
+      toast.success("Account created! Check your email and click the confirmation link before signing in.");
+    }
+  }
+
+  async function resendVerification() {
+    if (!email) {
+      toast.error("Enter your email above first.");
+      return;
+    }
+    setBusy(true);
+    const { error } = await supabase.auth.resend({
+      type: "signup",
+      email,
+      options: { emailRedirectTo: `${window.location.origin}/auctions` },
+    });
+    setBusy(false);
+    if (error) toast.error(error.message);
+    else toast.success("Verification email sent. Check your inbox.");
   }
 
   async function google() {
@@ -116,6 +146,25 @@ function LoginPage() {
         <Button variant="outline" className="w-full" onClick={google}>
           Continue with Google
         </Button>
+
+        {needsVerify && (
+          <div className="mt-4 rounded-md border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
+            <p className="mb-2">
+              Verify your email to continue. We sent a confirmation link to{" "}
+              <span className="font-medium text-foreground">{email || "your inbox"}</span>.
+            </p>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              className="w-full"
+              onClick={resendVerification}
+              disabled={busy}
+            >
+              Resend verification email
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   );
