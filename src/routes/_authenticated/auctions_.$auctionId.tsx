@@ -390,9 +390,6 @@ function LobbyRoom({
             <Radio className="h-3 w-3 animate-pulse" /> Lobby
           </p>
           <h2 className="text-lg font-bold">Waiting room</h2>
-          <p className="text-xs text-muted-foreground">
-            {joinedCount} of {totalTeams} team managers joined
-          </p>
         </div>
         {myTeamIds.length > 0 && (
           <span className="rounded-full bg-primary/15 px-3 py-1 text-xs font-bold text-primary">
@@ -468,37 +465,12 @@ function LobbyRoom({
 
       {isAdmin && (
         <div className="space-y-2">
-          {!allJoined && (
-            <div className="flex items-start gap-2 rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-xs text-destructive">
-              <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5" />
-              <span>{totalTeams - joinedCount} team manager{totalTeams - joinedCount === 1 ? "" : "s"} haven't joined yet. You can still start, but they'll miss the opening bids.</span>
-            </div>
-          )}
-          {allJoined ? (
-            <Button className="w-full h-12 text-base font-bold" onClick={() => goLive.mutate()} disabled={goLive.isPending}>
-              <Play className="h-4 w-4 mr-2" /> Start bidding
-            </Button>
-          ) : (
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button className="w-full h-12 text-base font-bold" variant="outline" disabled={goLive.isPending}>
-                  <Play className="h-4 w-4 mr-2" /> Start bidding anyway
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Start without everyone?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    {totalTeams - joinedCount} team manager{totalTeams - joinedCount === 1 ? " hasn't" : "s haven't"} joined the lobby yet. They can still join after bidding starts, but may miss the first player.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Wait</AlertDialogCancel>
-                  <AlertDialogAction onClick={() => goLive.mutate()}>Start anyway</AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          )}
+          <Button className="w-full h-12 text-base font-bold" onClick={() => goLive.mutate()} disabled={goLive.isPending}>
+            <Play className="h-4 w-4 mr-2" /> Start bidding
+          </Button>
+          <p className="text-[11px] text-muted-foreground text-center">
+            {joinedCount} of {totalTeams} team manager{totalTeams === 1 ? "" : "s"} joined — others can still join after bidding starts.
+          </p>
         </div>
       )}
 
