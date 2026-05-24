@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Calendar, Coins, Gavel, Play, ChevronsRight, Trash2, Users, Timer, CheckCircle2, Circle, StopCircle, AlertTriangle, Radio } from "lucide-react";
+import { ArrowLeft, Calendar, Coins, Gavel, Play, ChevronsRight, Trash2, Users, Timer, CheckCircle2, Circle, StopCircle, AlertTriangle, Radio, Pause, RotateCcw } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -49,7 +49,7 @@ function AuctionDetail() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("auction_players")
-        .select("id,status,sold_price,sold_team_id,round_ends_at,player:players(id,first_name,last_name,display_name,player_role,photo_url,country)")
+        .select("id,status,sold_price,sold_team_id,round_ends_at,paused_remaining_seconds,player:players(id,first_name,last_name,display_name,player_role,photo_url,country)")
         .eq("auction_id", auctionId)
         .order("first_name", { foreignTable: "players", ascending: true });
       if (error) throw error;
