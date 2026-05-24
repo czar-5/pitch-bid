@@ -139,6 +139,8 @@ export type Database = {
           current_player_id: string | null
           id: string
           last_finalized_player_id: string | null
+          max_players_per_team: number
+          min_players_per_team: number
           name: string
           round_closure_seconds: number
           scheduled_at: string
@@ -154,6 +156,8 @@ export type Database = {
           current_player_id?: string | null
           id?: string
           last_finalized_player_id?: string | null
+          max_players_per_team?: number
+          min_players_per_team?: number
           name: string
           round_closure_seconds?: number
           scheduled_at?: string
@@ -169,6 +173,8 @@ export type Database = {
           current_player_id?: string | null
           id?: string
           last_finalized_player_id?: string | null
+          max_players_per_team?: number
+          min_players_per_team?: number
           name?: string
           round_closure_seconds?: number
           scheduled_at?: string
