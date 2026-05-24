@@ -296,6 +296,16 @@ function LobbyRoom({
 }) {
   const qc = useQueryClient();
 
+  const nextPlayerQ = useQuery({
+    queryKey: ["next-player", auctionId],
+    enabled: isLobby,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("get_next_player", { _auction_id: auctionId });
+      if (error) throw error;
+      return (data && data.length > 1) ? data[0] : null;
+    },
+  });
+
   const [roundSecs, setRoundSecs] = useState<number>(auction.round_closure_seconds);
   useEffect(() => { setRoundSecs(auction.round_closure_seconds); }, [auction.round_closure_seconds]);
   const saveRoundSecs = useMutation({
