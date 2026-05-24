@@ -851,20 +851,11 @@ function IntermissionRoom({
           </div>
           <div className="flex-1 min-w-0 w-full">
             <h2 className="text-2xl sm:text-3xl font-bold truncate">{p.name}</h2>
-            <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2">
-              <div className="rounded-lg bg-background/60 p-2">
-                <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Role</p>
-                <p className="text-base font-bold capitalize">{p.role?.replace(/_/g, " ") ?? "—"}</p>
-              </div>
-              <div className="rounded-lg bg-background/60 p-2">
-                <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Batting</p>
-                <p className="text-base font-bold">{p.batting_style ?? "—"}</p>
-              </div>
-              <div className="rounded-lg bg-background/60 p-2">
-                <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Bowling</p>
-                <p className="text-base font-bold">{p.bowling_style ?? "—"}</p>
-              </div>
-            </div>
+            <p className="text-sm text-muted-foreground mt-1">
+              <span className="capitalize">{p.role?.replace(/_/g, " ") ?? "—"}</span>
+              {p.batting_style ? <> · {p.batting_style}</> : null}
+              {p.bowling_style ? <> · {p.bowling_style}</> : null}
+            </p>
             <div className="mt-3 grid grid-cols-2 sm:grid-cols-5 gap-2">
               {[
                 { label: "Matches", value: p.matches ?? 0 },
