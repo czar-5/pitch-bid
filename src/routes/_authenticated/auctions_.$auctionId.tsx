@@ -558,6 +558,31 @@ function LiveRoom({
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const pauseRound = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.rpc("pause_round", { _auction_id: auctionId });
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["auction-players", auctionId] }),
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const resumeRound = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.rpc("resume_round", { _auction_id: auctionId });
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["auction-players", auctionId] }),
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const resetRound = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.rpc("reset_round", { _auction_id: auctionId });
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["auction-players", auctionId] }),
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   if (!currentAp) {
     return (
       <div className="rounded-xl border border-primary/40 bg-gradient-to-br from-primary/10 to-card p-6 text-center space-y-3">
