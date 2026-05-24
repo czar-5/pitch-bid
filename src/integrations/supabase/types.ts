@@ -385,12 +385,17 @@ export type Database = {
       get_next_player: {
         Args: { _auction_id: string }
         Returns: {
+          batting_avg: number
+          batting_sr: number
           batting_style: string
           bowling_style: string
+          matches: number
           name: string
           photo: string
           player_id: string
           role: string
+          runs: number
+          wickets: number
         }[]
       }
       go_live_auction: { Args: { _auction_id: string }; Returns: undefined }
