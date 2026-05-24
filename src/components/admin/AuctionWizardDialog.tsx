@@ -24,6 +24,8 @@ type WizardState = {
   team_budget: number;
   baseline_price: number;
   round_closure_seconds: number;
+  min_players_per_team: number;
+  max_players_per_team: number;
   bid_rules: BidRule[];
   selectedTeams: Set<string>;
   selectedPlayers: Set<string>;
@@ -52,6 +54,8 @@ export function AuctionWizardDialog({ trigger }: { trigger: React.ReactNode }) {
       team_budget: 100000,
       baseline_price: 500,
       round_closure_seconds: 15,
+      min_players_per_team: 10,
+      max_players_per_team: 12,
       bid_rules: DEFAULT_BID_RULES,
       selectedTeams: new Set(),
       selectedPlayers: new Set(),
@@ -99,6 +103,8 @@ export function AuctionWizardDialog({ trigger }: { trigger: React.ReactNode }) {
           team_budget: state.team_budget,
           baseline_price: state.baseline_price,
           round_closure_seconds: state.round_closure_seconds,
+          min_players_per_team: state.min_players_per_team,
+          max_players_per_team: state.max_players_per_team,
           bid_rules_json: state.bid_rules.map((r, i, arr) => ({
             min: i === 0 ? state.baseline_price : (arr[i - 1].max ?? state.baseline_price),
             max: r.max,
@@ -144,7 +150,14 @@ export function AuctionWizardDialog({ trigger }: { trigger: React.ReactNode }) {
 
   function canAdvance() {
     if (step === 0) return state.name.trim().length > 0 && !!state.scheduledDate;
-    if (step === 1) return state.team_budget > 0 && state.baseline_price > 0 && state.round_closure_seconds > 0;
+    if (step === 1) return (
+      state.team_budget > 0 &&
+      state.baseline_price > 0 &&
+      state.round_closure_seconds > 0 &&
+      state.min_players_per_team >= 0 &&
+      state.max_players_per_team >= 1 &&
+      state.min_players_per_team <= state.max_players_per_team
+    );
     if (step === 2) return state.selectedTeams.size >= 2;
     if (step === 3) return state.selectedPlayers.size >= 1;
     return true;
