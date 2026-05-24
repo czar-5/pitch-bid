@@ -832,6 +832,85 @@ function PreviousBidHistory({ auctionPlayerId, player }: { auctionPlayerId: stri
   );
 }
 
+function IntermissionRoom({
+  auctionId, isAdmin, onNext, nextPending,
+}: {
+  auctionId: string;
+  lastFinalizedAp?: any;
+  isAdmin: boolean;
+  onNext: () => void;
+  nextPending: boolean;
+}) {
+  const nextPlayerQ = useQuery({
+    queryKey: ["next-player", auctionId],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("get_next_player", { _auction_id: auctionId });
+      if (error) throw error;
+      return (data && (data as any[]).length > 0) ? (data as any[])[0] : null;
+    },
+  });
+
+  const p = nextPlayerQ.data;
+
+  return (
+    <div className="rounded-xl border border-primary/40 bg-gradient-to-br from-primary/15 to-card p-5 space-y-5">
+      <div className="text-center">
+        <p className="text-[10px] uppercase tracking-widest text-primary font-bold">Next player</p>
+        {!p && <p className="mt-2 text-muted-foreground">No more players queued.</p>}
+      </div>
+
+      {p && (
+        <div className="flex flex-col sm:flex-row items-start gap-5">
+          <div className="h-48 w-48 sm:h-56 sm:w-56 rounded-xl bg-muted overflow-hidden flex-shrink-0 mx-auto sm:mx-0">
+            {p.photo
+              ? <img src={p.photo} alt="" className="h-full w-full object-cover" />
+              : <div className="h-full w-full flex items-center justify-center text-5xl font-bold text-muted-foreground">{(p.name ?? "?")[0]}</div>}
+          </div>
+          <div className="flex-1 min-w-0 w-full">
+            <h2 className="text-2xl sm:text-3xl font-bold truncate">{p.name}</h2>
+            <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <div className="rounded-lg bg-background/60 p-2">
+                <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Role</p>
+                <p className="text-base font-bold capitalize">{p.role?.replace(/_/g, " ") ?? "—"}</p>
+              </div>
+              <div className="rounded-lg bg-background/60 p-2">
+                <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Batting</p>
+                <p className="text-base font-bold">{p.batting_style ?? "—"}</p>
+              </div>
+              <div className="rounded-lg bg-background/60 p-2">
+                <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Bowling</p>
+                <p className="text-base font-bold">{p.bowling_style ?? "—"}</p>
+              </div>
+            </div>
+            <div className="mt-3 grid grid-cols-2 sm:grid-cols-5 gap-2">
+              {[
+                { label: "Matches", value: p.matches ?? 0 },
+                { label: "Runs", value: p.runs ?? 0 },
+                { label: "Wickets", value: p.wickets ?? 0 },
+                { label: "Average", value: p.batting_avg ?? 0 },
+                { label: "Strike Rate", value: p.batting_sr ?? 0 },
+              ].map((s) => (
+                <div key={s.label} className="rounded-lg bg-background/60 p-2 text-center">
+                  <p className="text-[10px] uppercase tracking-widest text-muted-foreground">{s.label}</p>
+                  <p className="text-2xl font-bold tabular-nums">{s.value}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isAdmin && (
+        <div className="text-center">
+          <Button size="lg" onClick={onNext} disabled={nextPending || !p}>
+            <ChevronsRight className="h-4 w-4 mr-1" /> Bring up next player
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function TeamsTabs({
   auctionId, teams, joinedTeamIds,
 }: {
