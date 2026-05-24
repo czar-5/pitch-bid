@@ -5,7 +5,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Search, ExternalLink, Pencil, Trash2 } from "lucide-react";
+import { Plus, Search, ExternalLink, Pencil, Trash2, Upload } from "lucide-react";
+import { Link } from "@tanstack/react-router";
 import { PlayerFormDialog } from "@/components/admin/PlayerFormDialog";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -19,7 +20,11 @@ export const Route = createFileRoute("/_authenticated/players")({
 });
 
 const roleLabel: Record<string, string> = {
-  batsman: "Batsman", bowler: "Bowler", all_rounder: "All-rounder", wicketkeeper: "Wicketkeeper",
+  batter: "Batter",
+  bowler: "Bowler",
+  batting_allrounder: "Batting Allrounder",
+  bowling_allrounder: "Bowling Allrounder",
+  wicket_keeper: "Wicket Keeper",
 };
 
 function PlayersPage() {
@@ -39,16 +44,15 @@ function PlayersPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("players")
-        .select("id,first_name,last_name,display_name,photo_url,player_role,country,cricinfo_url")
-        .order("first_name");
+        .select("id,name,role,batting_style,bowling_style,matches,runs,wickets,batting_avg,batting_sr,photo,cric_heroes_link")
+        .order("name");
       if (error) throw error;
       return data;
     },
   });
 
   const filtered = (data ?? []).filter((p) => {
-    const name = `${p.first_name} ${p.last_name} ${p.display_name ?? ""}`.toLowerCase();
-    return name.includes(q.toLowerCase());
+    return (p.name ?? "").toLowerCase().includes(q.toLowerCase());
   });
 
   return (
@@ -59,7 +63,12 @@ function PlayersPage() {
           <p className="text-sm text-muted-foreground">Master player pool.</p>
         </div>
         {isAdmin && (
-          <PlayerFormDialog trigger={<Button><Plus className="h-4 w-4 mr-1" /> Create Player</Button>} />
+          <div className="flex gap-2">
+            <Button asChild variant="outline">
+              <Link to="/players/import"><Upload className="h-4 w-4 mr-1" /> Bulk import</Link>
+            </Button>
+            <PlayerFormDialog trigger={<Button><Plus className="h-4 w-4 mr-1" /> Create Player</Button>} />
+          </div>
         )}
       </div>
 
@@ -84,30 +93,34 @@ function PlayersPage() {
         {filtered.map((p) => (
           <div key={p.id} className="rounded-xl border border-border bg-card p-4 flex gap-3 group relative">
             <div className="h-14 w-14 rounded-full bg-muted overflow-hidden flex-shrink-0">
-              {p.photo_url ? (
-                <img src={p.photo_url} alt="" className="h-full w-full object-cover" />
+              {p.photo ? (
+                <img src={p.photo} alt="" className="h-full w-full object-cover" />
               ) : (
                 <div className="flex h-full w-full items-center justify-center text-sm font-bold text-muted-foreground">
-                  {p.first_name[0]}{p.last_name[0]}
+                  {(p.name ?? "?").slice(0, 2).toUpperCase()}
                 </div>
               )}
             </div>
             <div className="min-w-0 flex-1">
               <p className="font-semibold leading-tight truncate">
-                {p.display_name ?? `${p.first_name} ${p.last_name}`}
+                {p.name}
               </p>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                {roleLabel[p.player_role] ?? p.player_role}
-                {p.country ? ` · ${p.country}` : ""}
+                {roleLabel[p.role] ?? p.role}
+                {p.batting_style ? ` · ${p.batting_style}` : ""}
+                {p.bowling_style ? ` · ${p.bowling_style}` : ""}
               </p>
-              {p.cricinfo_url && (
+              <p className="mt-0.5 text-[11px] text-muted-foreground/80 font-mono">
+                M {p.matches} · R {p.runs} · W {p.wickets} · Avg {Number(p.batting_avg).toFixed(2)} · SR {Number(p.batting_sr).toFixed(2)}
+              </p>
+              {p.cric_heroes_link && (
                 <a
-                  href={p.cricinfo_url}
+                  href={p.cric_heroes_link}
                   target="_blank"
                   rel="noreferrer"
                   className="mt-1 inline-flex items-center gap-1 text-xs text-primary hover:underline"
                 >
-                  Cricinfo <ExternalLink className="h-3 w-3" />
+                  CricHeroes <ExternalLink className="h-3 w-3" />
                 </a>
               )}
             </div>
@@ -125,7 +138,7 @@ function PlayersPage() {
                     <AlertDialogHeader>
                       <AlertDialogTitle>Delete player?</AlertDialogTitle>
                       <AlertDialogDescription>
-                        This will permanently remove {p.display_name ?? `${p.first_name} ${p.last_name}`} from the master pool.
+                        This will permanently remove {p.name} from the master pool.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>

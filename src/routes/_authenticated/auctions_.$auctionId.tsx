@@ -49,9 +49,9 @@ function AuctionDetail() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("auction_players")
-        .select("id,status,sold_price,sold_team_id,round_ends_at,paused_remaining_seconds,player:players(id,first_name,last_name,display_name,player_role,photo_url,country)")
+        .select("id,status,sold_price,sold_team_id,round_ends_at,paused_remaining_seconds,player:players(id,name,role,photo,batting_style,bowling_style)")
         .eq("auction_id", auctionId)
-        .order("first_name", { foreignTable: "players", ascending: true });
+        .order("name", { foreignTable: "players", ascending: true });
       if (error) throw error;
       return data;
     },
@@ -233,8 +233,8 @@ function AuctionDetail() {
             return (
               <div key={ap.id} className="p-3 flex items-center gap-3 text-sm">
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium truncate">{ap.player?.display_name ?? `${ap.player?.first_name} ${ap.player?.last_name}`}</p>
-                  <p className="text-xs text-muted-foreground capitalize">{ap.player?.player_role.replace("_", " ")}</p>
+                  <p className="font-medium truncate">{ap.player?.name}</p>
+                  <p className="text-xs text-muted-foreground capitalize">{ap.player?.role?.replace(/_/g, " ")}</p>
                 </div>
                 {ap.sold_price != null && <span className="text-xs text-muted-foreground">{ap.sold_price.toLocaleString()}</span>}
                 {team && (
@@ -404,17 +404,18 @@ function LobbyRoom({
       {nextPlayerQ.data ? (
         <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 flex items-center gap-4">
           <div className="h-14 w-14 rounded-lg bg-muted overflow-hidden flex-shrink-1 flex items-center justify-center text-lg font-bold text-muted-foreground">
-            {nextPlayerQ.data.photo_url
-              ? <img src={nextPlayerQ.data.photo_url} alt="" className="h-full w-full object-cover" />
-              : (nextPlayerQ.data.first_name ?? "?")[0]}
+            {nextPlayerQ.data.photo
+              ? <img src={nextPlayerQ.data.photo} alt="" className="h-full w-full object-cover" />
+              : (nextPlayerQ.data.name ?? "?")[0]}
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-[10px] uppercase tracking-widest text-primary font-bold">Up next</p>
             <p className="text-base font-bold truncate">
-              {nextPlayerQ.data.display_name ?? `${nextPlayerQ.data.first_name} ${nextPlayerQ.data.last_name}`}
+              {nextPlayerQ.data.name}
             </p>
             <p className="text-xs text-muted-foreground capitalize">
-              {nextPlayerQ.data.player_role?.replace("_", " ")}{nextPlayerQ.data.country ? ` · ${nextPlayerQ.data.country}` : ""}
+              {nextPlayerQ.data.role?.replace(/_/g, " ")}
+              {nextPlayerQ.data.batting_style ? ` · ${nextPlayerQ.data.batting_style}` : ""}
             </p>
           </div>
           <ChevronsRight className="h-5 w-5 text-primary flex-shrink-0" />
@@ -626,7 +627,7 @@ function LiveRoom({
           <>
             <p className="text-[10px] uppercase tracking-widest text-primary font-bold">Last player</p>
             <p className="text-lg font-bold">
-              {lastFinalizedAp.player?.display_name ?? `${lastFinalizedAp.player?.first_name} ${lastFinalizedAp.player?.last_name}`}
+              {lastFinalizedAp.player?.name}
               {" "}
               <span className="text-sm font-normal text-muted-foreground capitalize">
                 · {lastFinalizedAp.status}
@@ -671,14 +672,14 @@ function LiveRoom({
       <div className="rounded-xl border border-primary/40 bg-gradient-to-br from-primary/15 to-card p-5">
         <div className="flex items-start gap-4">
           <div className="h-20 w-20 rounded-xl bg-muted overflow-hidden flex-shrink-0">
-            {p?.photo_url
-              ? <img src={p.photo_url} alt="" className="h-full w-full object-cover" />
-              : <div className="h-full w-full flex items-center justify-center text-2xl font-bold text-muted-foreground">{(p?.first_name ?? "?")[0]}</div>}
+            {p?.photo
+              ? <img src={p.photo} alt="" className="h-full w-full object-cover" />
+              : <div className="h-full w-full flex items-center justify-center text-2xl font-bold text-muted-foreground">{(p?.name ?? "?")[0]}</div>}
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-[10px] uppercase tracking-widest text-primary font-bold">On the block</p>
-            <h2 className="text-xl font-bold truncate">{p?.display_name ?? `${p?.first_name} ${p?.last_name}`}</h2>
-            <p className="text-xs text-muted-foreground capitalize">{p?.player_role?.replace("_", " ")}{p?.country ? ` · ${p.country}` : ""}</p>
+            <h2 className="text-xl font-bold truncate">{p?.name}</h2>
+            <p className="text-xs text-muted-foreground capitalize">{p?.role?.replace(/_/g, " ")}{p?.batting_style ? ` · ${p.batting_style}` : ""}</p>
           </div>
           {remaining != null && !bigTimer && (
             <div className="flex items-center gap-1 text-lg font-mono font-bold text-foreground">
@@ -791,7 +792,7 @@ function PreviousBidHistory({ auctionPlayerId, player }: { auctionPlayerId: stri
       return data;
     },
   });
-  const name = player?.display_name ?? `${player?.first_name ?? ""} ${player?.last_name ?? ""}`.trim();
+  const name = player?.name ?? "";
   return (
     <section>
       <h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-3">
@@ -826,7 +827,7 @@ function TeamsTabs({
     queryFn: async () => {
       const { data, error } = await supabase
         .from("auction_players")
-        .select("sold_team_id,sold_price,player:players(first_name,last_name,display_name,player_role,photo_url)")
+        .select("sold_team_id,sold_price,player:players(name,role,photo)")
         .eq("auction_id", auctionId)
         .eq("status", "sold");
       if (error) throw error;
@@ -914,17 +915,17 @@ function TeamsTabs({
           <ul className="grid sm:grid-cols-2 gap-1.5">
             {activeRoster.map((r: any, i: number) => {
               const p = r.player;
-              const name = p?.display_name || `${p?.first_name ?? ""} ${p?.last_name ?? ""}`.trim();
+              const name = p?.name ?? "";
               return (
                 <li key={i} className="flex items-center gap-2 rounded-md bg-background/60 border border-border/50 px-2 py-1.5">
                   <div className="h-7 w-7 rounded-full bg-muted overflow-hidden flex-shrink-0 flex items-center justify-center text-[10px] font-bold">
-                    {p?.photo_url
-                      ? <img src={p.photo_url} alt="" className="h-full w-full object-cover" />
+                    {p?.photo
+                      ? <img src={p.photo} alt="" className="h-full w-full object-cover" />
                       : name.slice(0, 2).toUpperCase()}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-medium truncate">{name}</p>
-                    <p className="text-[10px] text-muted-foreground capitalize">{p?.player_role}</p>
+                    <p className="text-[10px] text-muted-foreground capitalize">{p?.role?.replace(/_/g, " ")}</p>
                   </div>
                   <span className="text-xs font-semibold tabular-nums">{(r.sold_price ?? 0).toLocaleString()}</span>
                 </li>
