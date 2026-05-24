@@ -62,7 +62,7 @@ function AuctionDetail() {
     const ch = supabase
       .channel(`auction-${auctionId}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "auctions", filter: `id=eq.${auctionId}` },
-        () => qc.invalidateQueries({ queryKey: ["auction", auctionId] }))
+        () => { qc.invalidateQueries({ queryKey: ["auction", auctionId] }); qc.invalidateQueries({ queryKey: ["next-player", auctionId] }); })
       .on("postgres_changes", { event: "*", schema: "public", table: "auction_players", filter: `auction_id=eq.${auctionId}` },
         () => { qc.invalidateQueries({ queryKey: ["auction-players", auctionId] }); qc.invalidateQueries({ queryKey: ["next-player", auctionId] }); })
       .on("postgres_changes", { event: "*", schema: "public", table: "auction_teams", filter: `auction_id=eq.${auctionId}` },
