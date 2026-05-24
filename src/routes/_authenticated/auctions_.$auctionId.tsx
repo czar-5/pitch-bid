@@ -49,9 +49,9 @@ function AuctionDetail() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("auction_players")
-        .select("id,auction_order,status,sold_price,sold_team_id,round_ends_at,player:players(id,first_name,last_name,display_name,player_role,photo_url,country)")
+        .select("id,status,sold_price,sold_team_id,round_ends_at,player:players(id,first_name,last_name,display_name,player_role,photo_url,country)")
         .eq("auction_id", auctionId)
-        .order("auction_order", { nullsFirst: false });
+        .order("first_name", { foreignTable: "players", ascending: true });
       if (error) throw error;
       return data;
     },
@@ -225,7 +225,6 @@ function AuctionDetail() {
         <div className="rounded-xl border border-border bg-card divide-y divide-border">
           {playersQ.data?.map((ap) => (
             <div key={ap.id} className="p-3 flex items-center gap-3 text-sm">
-              <span className="text-xs text-muted-foreground font-mono w-8">#{ap.auction_order}</span>
               <div className="flex-1 min-w-0">
                 <p className="font-medium truncate">{ap.player?.display_name ?? `${ap.player?.first_name} ${ap.player?.last_name}`}</p>
                 <p className="text-xs text-muted-foreground capitalize">{ap.player?.player_role.replace("_", " ")}</p>
