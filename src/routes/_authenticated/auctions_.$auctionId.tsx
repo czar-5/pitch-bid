@@ -402,23 +402,37 @@ function LobbyRoom({
       </div>
 
       {nextPlayerQ.data ? (
-        <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 flex items-center gap-4">
-          <div className="h-14 w-14 rounded-lg bg-muted overflow-hidden flex-shrink-1 flex items-center justify-center text-lg font-bold text-muted-foreground">
-            {nextPlayerQ.data.photo
-              ? <img src={nextPlayerQ.data.photo} alt="" className="h-full w-full object-cover" />
-              : (nextPlayerQ.data.name ?? "?")[0]}
+        <div className="rounded-xl border border-primary/40 bg-gradient-to-br from-primary/15 to-card p-5 space-y-4">
+          <p className="text-[10px] uppercase tracking-widest text-primary font-bold text-center">Up next</p>
+          <div className="flex flex-col sm:flex-row items-start gap-5">
+            <div className="h-40 w-40 sm:h-48 sm:w-48 rounded-xl bg-muted overflow-hidden flex-shrink-0 mx-auto sm:mx-0">
+              {nextPlayerQ.data.photo
+                ? <img src={nextPlayerQ.data.photo} alt="" className="h-full w-full object-cover" />
+                : <div className="h-full w-full flex items-center justify-center text-5xl font-bold text-muted-foreground">{(nextPlayerQ.data.name ?? "?")[0]}</div>}
+            </div>
+            <div className="flex-1 min-w-0 w-full">
+              <h2 className="text-2xl sm:text-3xl font-bold truncate">{nextPlayerQ.data.name}</h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                <span className="capitalize">{nextPlayerQ.data.role?.replace(/_/g, " ") ?? "—"}</span>
+                {nextPlayerQ.data.batting_style ? <> · {nextPlayerQ.data.batting_style}</> : null}
+                {nextPlayerQ.data.bowling_style ? <> · {nextPlayerQ.data.bowling_style}</> : null}
+              </p>
+              <div className="mt-3 grid grid-cols-2 sm:grid-cols-5 gap-2">
+                {[
+                  { label: "Matches", value: nextPlayerQ.data.matches ?? 0 },
+                  { label: "Runs", value: nextPlayerQ.data.runs ?? 0 },
+                  { label: "Wickets", value: nextPlayerQ.data.wickets ?? 0 },
+                  { label: "Average", value: nextPlayerQ.data.batting_avg ?? 0 },
+                  { label: "Strike Rate", value: nextPlayerQ.data.batting_sr ?? 0 },
+                ].map((s) => (
+                  <div key={s.label} className="rounded-lg bg-background/60 p-2 text-center">
+                    <p className="text-[10px] uppercase tracking-widest text-muted-foreground">{s.label}</p>
+                    <p className="text-xl sm:text-2xl font-bold tabular-nums">{s.value}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-[10px] uppercase tracking-widest text-primary font-bold">Up next</p>
-            <p className="text-base font-bold truncate">
-              {nextPlayerQ.data.name}
-            </p>
-            <p className="text-xs text-muted-foreground capitalize">
-              {nextPlayerQ.data.role?.replace(/_/g, " ")}
-              {nextPlayerQ.data.batting_style ? ` · ${nextPlayerQ.data.batting_style}` : ""}
-            </p>
-          </div>
-          <ChevronsRight className="h-5 w-5 text-primary flex-shrink-0" />
         </div>
       ) : (
         <div className="rounded-lg border border-border bg-muted/40 p-4 text-center text-sm text-muted-foreground">
