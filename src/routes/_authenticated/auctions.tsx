@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { Plus, Calendar, Users, Radio, Trash2, Play, ArrowRight } from "lucide-react";
+import { Plus, Calendar, Users, Radio, Trash2, Play, ArrowRight, Pencil } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { AuctionWizardDialog } from "@/components/admin/AuctionWizardDialog";
@@ -121,15 +121,31 @@ function Section({
             {isAdmin && (
               <div className="mt-3 flex justify-end gap-1 border-t border-border pt-2">
                 {tone === "upcoming" && (
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="h-7 w-7 text-primary"
-                    title="Start auction"
-                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); onStart(a.id); }}
-                  >
-                    <Play className="h-3.5 w-3.5" />
-                  </Button>
+                  <>
+                    <AuctionWizardDialog
+                      auctionId={a.id}
+                      trigger={
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7"
+                          title="Edit auction"
+                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                      }
+                    />
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-7 w-7 text-primary"
+                      title="Start auction"
+                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); onStart(a.id); }}
+                    >
+                      <Play className="h-3.5 w-3.5" />
+                    </Button>
+                  </>
                 )}
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
