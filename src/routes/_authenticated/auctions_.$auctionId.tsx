@@ -632,33 +632,7 @@ function LiveRoom({
     );
   }
 
-  // (legacy intermission block removed — handled by IntermissionRoom)
-  if (false) {
-    return (
-      <div className="rounded-xl border border-primary/40 bg-gradient-to-br from-primary/10 to-card p-6 text-center space-y-3">
-        {lastFinalizedAp ? (
-          <>
-            <p className="text-[10px] uppercase tracking-widest text-primary font-bold">Last player</p>
-            <p className="text-lg font-bold">
-              {lastFinalizedAp.player?.name}
-              {" "}
-              <span className="text-sm font-normal text-muted-foreground capitalize">
-                · {lastFinalizedAp.status}
-                {lastFinalizedAp.sold_price != null ? ` for ${lastFinalizedAp.sold_price.toLocaleString()}` : ""}
-              </span>
-            </p>
-          </>
-        ) : (
-          <p className="text-muted-foreground">Intermission — no player on the block.</p>
-        )}
-        {isAdmin && (
-          <Button size="lg" onClick={() => next.mutate()} disabled={next.isPending}>
-            <ChevronsRight className="h-4 w-4 mr-1" /> Bring up next player
-          </Button>
-        )}
-      </div>
-    );
-  }
+  // (legacy intermission removed)
 
   const p = currentAp.player;
   const leadingTeam = highBid ? teams.find((t) => t.team?.id === highBid.team?.id) : null;
