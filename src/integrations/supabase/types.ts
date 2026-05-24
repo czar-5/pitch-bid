@@ -370,6 +370,18 @@ export type Database = {
     Functions: {
       end_auction: { Args: { _auction_id: string }; Returns: undefined }
       finalize_current: { Args: { _auction_id: string }; Returns: undefined }
+      get_next_player: {
+        Args: { _auction_id: string }
+        Returns: {
+          country: string
+          display_name: string
+          first_name: string
+          last_name: string
+          photo_url: string
+          player_id: string
+          player_role: string
+        }[]
+      }
       go_live_auction: { Args: { _auction_id: string }; Returns: undefined }
       has_role: {
         Args: {
