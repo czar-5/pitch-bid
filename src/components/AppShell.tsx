@@ -1,5 +1,5 @@
 import { Link, Outlet, useRouter } from "@tanstack/react-router";
-import { Gavel, Users, UserRound, LogOut, Trophy } from "lucide-react";
+import { Gavel, Users, UserRound, LogOut, LogIn, Trophy } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Toaster } from "@/components/ui/sonner";
@@ -44,14 +44,20 @@ export function AppShell() {
             ))}
           </nav>
           <div className="flex items-center gap-2">
-            <Link
-              to="/profile"
-              aria-label="My profile"
-              className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground hover:opacity-90 transition-opacity"
-              activeProps={{ className: "flex h-8 w-8 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground ring-2 ring-ring ring-offset-2 ring-offset-background" }}
-            >
-              {initial}
-            </Link>
+            {isAuthenticated ? (
+              <Link
+                to="/profile"
+                aria-label="My profile"
+                className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground hover:opacity-90 transition-opacity"
+                activeProps={{ className: "flex h-8 w-8 items-center justify-center rounded-full bg-primary text-sm font-semibold text-primary-foreground ring-2 ring-ring ring-offset-2 ring-offset-background" }}
+              >
+                {initial}
+              </Link>
+            ) : (
+              <Button asChild size="sm">
+                <Link to="/login"><LogIn className="h-4 w-4 mr-1" /> Sign in</Link>
+              </Button>
+            )}
             {isAuthenticated && (
               <Button
                 size="icon"
