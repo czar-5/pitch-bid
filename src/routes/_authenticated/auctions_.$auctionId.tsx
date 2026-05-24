@@ -190,6 +190,7 @@ function AuctionDetail() {
       {isLobby && (
         <LobbyRoom
           auctionId={auctionId}
+          auction={a}
           teams={teamsQ.data ?? []}
           isAdmin={isAdmin}
           userId={user?.id ?? null}
