@@ -81,7 +81,7 @@ export function AuctionWizardDialog({ trigger }: { trigger: React.ReactNode }) {
   const playersQ = useQuery({
     queryKey: ["players-pick"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("players").select("id,first_name,last_name,display_name,player_role").order("first_name");
+      const { data, error } = await supabase.from("players").select("id,name,role").order("name");
       if (error) throw error;
       return data;
     },
@@ -349,10 +349,10 @@ function StepTeams({ state, setState, teams, loading }: { state: WizardState; se
   );
 }
 
-type PlayerOpt = { id: string; first_name: string; last_name: string; display_name: string | null; player_role: string };
+type PlayerOpt = { id: string; name: string; role: string };
 function StepPlayers({ state, setState, players, loading }: { state: WizardState; setState: Setter; players: PlayerOpt[]; loading: boolean }) {
   const [q, setQ] = useState("");
-  const filtered = useMemo(() => players.filter((p) => `${p.first_name} ${p.last_name} ${p.display_name ?? ""}`.toLowerCase().includes(q.toLowerCase())), [players, q]);
+  const filtered = useMemo(() => players.filter((p) => (p.name ?? "").toLowerCase().includes(q.toLowerCase())), [players, q]);
   function toggle(id: string) {
     setState((s) => {
       const next = new Set(s.selectedPlayers);
@@ -376,8 +376,8 @@ function StepPlayers({ state, setState, players, loading }: { state: WizardState
           <label key={p.id} className={cn("flex items-center gap-2 p-2 rounded-lg border cursor-pointer transition", state.selectedPlayers.has(p.id) ? "border-primary bg-primary/5" : "border-border hover:border-primary/50")}>
             <Checkbox checked={state.selectedPlayers.has(p.id)} onCheckedChange={() => toggle(p.id)} />
             <div className="flex-1">
-              <div className="text-sm font-medium">{p.display_name ?? `${p.first_name} ${p.last_name}`}</div>
-              <div className="text-xs text-muted-foreground capitalize">{p.player_role.replace("_", " ")}</div>
+              <div className="text-sm font-medium">{p.name}</div>
+              <div className="text-xs text-muted-foreground capitalize">{p.role.replace(/_/g, " ")}</div>
             </div>
           </label>
         ))}
