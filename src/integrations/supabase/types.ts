@@ -22,6 +22,7 @@ export type Database = {
           icon_team_id: string | null
           id: string
           is_icon: boolean
+          paused_remaining_seconds: number | null
           player_id: string
           round_ends_at: string | null
           sold_price: number | null
@@ -35,6 +36,7 @@ export type Database = {
           icon_team_id?: string | null
           id?: string
           is_icon?: boolean
+          paused_remaining_seconds?: number | null
           player_id: string
           round_ends_at?: string | null
           sold_price?: number | null
@@ -48,6 +50,7 @@ export type Database = {
           icon_team_id?: string | null
           id?: string
           is_icon?: boolean
+          paused_remaining_seconds?: number | null
           player_id?: string
           round_ends_at?: string | null
           sold_price?: number | null
@@ -377,10 +380,13 @@ export type Database = {
       }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
       next_player: { Args: { _auction_id: string }; Returns: string }
+      pause_round: { Args: { _auction_id: string }; Returns: undefined }
       place_bid: {
         Args: { _auction_player_id: string; _team_id: string }
         Returns: number
       }
+      reset_round: { Args: { _auction_id: string }; Returns: undefined }
+      resume_round: { Args: { _auction_id: string }; Returns: undefined }
       sell_current: { Args: { _auction_id: string }; Returns: undefined }
       skip_current: { Args: { _auction_id: string }; Returns: undefined }
       start_auction: { Args: { _auction_id: string }; Returns: undefined }

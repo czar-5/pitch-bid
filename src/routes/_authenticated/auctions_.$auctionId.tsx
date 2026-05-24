@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Calendar, Coins, Gavel, Play, ChevronsRight, Trash2, Users, Timer, CheckCircle2, Circle, StopCircle, AlertTriangle, Radio } from "lucide-react";
+import { ArrowLeft, Calendar, Coins, Gavel, Play, ChevronsRight, Trash2, Users, Timer, CheckCircle2, Circle, StopCircle, AlertTriangle, Radio, Pause, RotateCcw } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -49,7 +49,7 @@ function AuctionDetail() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("auction_players")
-        .select("id,status,sold_price,sold_team_id,round_ends_at,player:players(id,first_name,last_name,display_name,player_role,photo_url,country)")
+        .select("id,status,sold_price,sold_team_id,round_ends_at,paused_remaining_seconds,player:players(id,first_name,last_name,display_name,player_role,photo_url,country)")
         .eq("auction_id", auctionId)
         .order("first_name", { foreignTable: "players", ascending: true });
       if (error) throw error;
@@ -190,6 +190,7 @@ function AuctionDetail() {
       {isLobby && (
         <LobbyRoom
           auctionId={auctionId}
+          auction={a}
           teams={teamsQ.data ?? []}
           isAdmin={isAdmin}
           userId={user?.id ?? null}
@@ -285,14 +286,26 @@ function AuctionDetail() {
 type AuctionRow = NonNullable<ReturnType<typeof useQuery<{ id: string }>>["data"]>;
 
 function LobbyRoom({
-  auctionId, teams, isAdmin, userId,
+  auctionId, auction, teams, isAdmin, userId,
 }: {
   auctionId: string;
+  auction: any;
   teams: any[];
   isAdmin: boolean;
   userId: string | null;
 }) {
   const qc = useQueryClient();
+
+  const [roundSecs, setRoundSecs] = useState<number>(auction.round_closure_seconds);
+  useEffect(() => { setRoundSecs(auction.round_closure_seconds); }, [auction.round_closure_seconds]);
+  const saveRoundSecs = useMutation({
+    mutationFn: async (v: number) => {
+      const { error } = await supabase.from("auctions").update({ round_closure_seconds: v }).eq("id", auctionId);
+      if (error) throw error;
+    },
+    onSuccess: () => { toast.success("Round timer updated"); qc.invalidateQueries({ queryKey: ["auction", auctionId] }); },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   // which teams does this user manage?
   const membershipsQ = useQuery({
@@ -380,6 +393,30 @@ function LobbyRoom({
       </div>
 
       <TeamsTabs auctionId={auctionId} teams={teams} joinedTeamIds={joinedTeamIds} />
+
+      {isAdmin && (
+        <div className="rounded-lg border border-border bg-background/60 p-3 flex items-center gap-3">
+          <Timer className="h-4 w-4 text-muted-foreground" />
+          <label className="text-xs font-medium text-muted-foreground">Round timer</label>
+          <input
+            type="number"
+            min={3}
+            max={300}
+            value={roundSecs}
+            onChange={(e) => setRoundSecs(Math.max(3, Math.min(300, parseInt(e.target.value) || 0)))}
+            className="w-20 rounded border border-border bg-background px-2 py-1 text-sm"
+          />
+          <span className="text-xs text-muted-foreground">seconds</span>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={saveRoundSecs.isPending || roundSecs === auction.round_closure_seconds}
+            onClick={() => saveRoundSecs.mutate(roundSecs)}
+          >
+            Save
+          </Button>
+        </div>
+      )}
 
       {isAdmin && (
         <div className="space-y-2">
@@ -479,9 +516,12 @@ function LiveRoom({
     const t = setInterval(() => setNow(Date.now()), 250);
     return () => clearInterval(t);
   }, []);
-  const remaining = currentAp?.round_ends_at
-    ? Math.max(0, Math.ceil((new Date(currentAp.round_ends_at).getTime() - now) / 1000))
-    : null;
+  const isPaused = currentAp?.paused_remaining_seconds != null;
+  const remaining = isPaused
+    ? (currentAp?.paused_remaining_seconds as number)
+    : currentAp?.round_ends_at
+      ? Math.max(0, Math.ceil((new Date(currentAp.round_ends_at).getTime() - now) / 1000))
+      : null;
 
   const highBid = bidsQ.data?.[0] ?? null;
   const nextAmount = useMemo(() => {
@@ -521,6 +561,31 @@ function LiveRoom({
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const pauseRound = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.rpc("pause_round", { _auction_id: auctionId });
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["auction-players", auctionId] }),
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const resumeRound = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.rpc("resume_round", { _auction_id: auctionId });
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["auction-players", auctionId] }),
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const resetRound = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.rpc("reset_round", { _auction_id: auctionId });
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["auction-players", auctionId] }),
+    onError: (e: Error) => toast.error(e.message),
+  });
+
   if (!currentAp) {
     return (
       <div className="rounded-xl border border-primary/40 bg-gradient-to-br from-primary/10 to-card p-6 text-center space-y-3">
@@ -550,8 +615,8 @@ function LiveRoom({
 
   const p = currentAp.player;
   const leadingTeam = highBid ? teams.find((t) => t.team?.id === highBid.team?.id) : null;
-  const expired = remaining != null && remaining <= 0;
-  const bigTimer = remaining != null && remaining <= 5;
+  const expired = !isPaused && remaining != null && remaining <= 0;
+  const bigTimer = !isPaused && remaining != null && remaining <= 5;
 
   const selectedAt = selectedTeam ? myTeams.find((t) => t.team?.id === selectedTeam) : null;
   const minPlayers = (auction.min_players_per_team as number) ?? 0;
@@ -584,7 +649,8 @@ function LiveRoom({
           </div>
           {remaining != null && !bigTimer && (
             <div className="flex items-center gap-1 text-lg font-mono font-bold text-foreground">
-              <Timer className="h-4 w-4" /> {remaining}s
+              {isPaused ? <Pause className="h-4 w-4" /> : <Timer className="h-4 w-4" />}
+              {remaining}s{isPaused ? " (paused)" : ""}
             </div>
           )}
         </div>
@@ -636,13 +702,15 @@ function LiveRoom({
           <Button
             className="w-full h-14 text-lg font-bold"
             onClick={() => placeBid.mutate()}
-            disabled={placeBid.isPending || !selectedTeam || expired || (leadingTeam?.team?.id === selectedTeam) || bidBlocked}
+            disabled={placeBid.isPending || !selectedTeam || expired || isPaused || (leadingTeam?.team?.id === selectedTeam) || bidBlocked}
             title={blockedReason ?? undefined}
           >
             <Gavel className="h-4 w-4 mr-2" />
-            {expired
-              ? "Round closed"
-              : leadingTeam?.team?.id === selectedTeam
+            {isPaused
+              ? "Paused"
+              : expired
+                ? "Round closed"
+                : leadingTeam?.team?.id === selectedTeam
                 ? "You're leading"
                 : blockedReason
                   ? blockedReason
@@ -652,10 +720,26 @@ function LiveRoom({
       )}
 
       {isAdmin && (
-        <Button className="w-full" onClick={() => finalize.mutate()} disabled={finalize.isPending}>
-          <ChevronsRight className="h-4 w-4 mr-1" />
-          {highBid ? `Sell to ${highBid.team?.name} for ${highBid.amount.toLocaleString()} · Next` : "Mark unsold · Next"}
-        </Button>
+        <div className="space-y-2">
+          <div className="grid grid-cols-2 gap-2">
+            {isPaused ? (
+              <Button variant="outline" onClick={() => resumeRound.mutate()} disabled={resumeRound.isPending}>
+                <Play className="h-4 w-4 mr-1" /> Resume timer
+              </Button>
+            ) : (
+              <Button variant="outline" onClick={() => pauseRound.mutate()} disabled={pauseRound.isPending}>
+                <Pause className="h-4 w-4 mr-1" /> Pause timer
+              </Button>
+            )}
+            <Button variant="outline" onClick={() => resetRound.mutate()} disabled={resetRound.isPending}>
+              <RotateCcw className="h-4 w-4 mr-1" /> Reset timer
+            </Button>
+          </div>
+          <Button className="w-full" onClick={() => finalize.mutate()} disabled={finalize.isPending}>
+            <ChevronsRight className="h-4 w-4 mr-1" />
+            {highBid ? `Sell to ${highBid.team?.name} for ${highBid.amount.toLocaleString()} · Next` : "Mark unsold · Next"}
+          </Button>
+        </div>
       )}
     </div>
   );
