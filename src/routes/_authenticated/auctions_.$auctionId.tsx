@@ -657,10 +657,10 @@ function LiveRoom({
   return (
     <div className="space-y-4">
       <div className="rounded-xl border border-primary/40 bg-gradient-to-br from-primary/15 to-card p-5">
-        <div className="flex flex-col sm:flex-row items-start gap-5">
-          <div className="h-48 w-48 sm:h-56 sm:w-56 rounded-xl bg-muted overflow-hidden flex-shrink-0 mx-auto sm:mx-0">
+        <div className="flex flex-row items-start gap-4">
+          <div className="h-32 w-32 sm:h-48 sm:w-48 rounded-xl bg-muted overflow-hidden flex-shrink-0 aspect-square">
             {p?.photo
-              ? <img src={p.photo} alt="" className="h-full w-full object-cover" />
+              ? <img src={p.photo} alt="" className="block h-full w-full object-cover" />
               : <div className="h-full w-full flex items-center justify-center text-5xl font-bold text-muted-foreground">{(p?.name ?? "?")[0]}</div>}
           </div>
           <div className="flex-1 min-w-0 w-full">
@@ -668,6 +668,11 @@ function LiveRoom({
               <div className="min-w-0">
                 <p className="text-[10px] uppercase tracking-widest text-primary font-bold">On the block</p>
                 <h2 className="text-2xl sm:text-3xl font-bold truncate">{p?.name}</h2>
+                <p className="text-sm text-muted-foreground mt-1">
+                  <span className="capitalize">{p?.role?.replace(/_/g, " ") ?? "—"}</span>
+                  {p?.batting_style ? <> · {p.batting_style}</> : null}
+                  {p?.bowling_style ? <> · {p.bowling_style}</> : null}
+                </p>
               </div>
               {/* Timer slot — fixed size so the big-timer state doesn't reflow layout */}
               <div className="relative w-20 h-16 flex-shrink-0">
@@ -686,21 +691,7 @@ function LiveRoom({
                 )}
               </div>
             </div>
-            <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2">
-              <div className="rounded-lg bg-background/60 p-2">
-                <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Role</p>
-                <p className="text-base font-bold capitalize">{p?.role?.replace(/_/g, " ") ?? "—"}</p>
-              </div>
-              <div className="rounded-lg bg-background/60 p-2">
-                <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Batting</p>
-                <p className="text-base font-bold">{p?.batting_style ?? "—"}</p>
-              </div>
-              <div className="rounded-lg bg-background/60 p-2">
-                <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Bowling</p>
-                <p className="text-base font-bold">{p?.bowling_style ?? "—"}</p>
-              </div>
-            </div>
-            <div className="mt-3 grid grid-cols-2 sm:grid-cols-5 gap-2">
+            <div className="mt-3 grid grid-cols-3 sm:grid-cols-5 gap-2">
               {[
                 { label: "Matches", value: p?.matches ?? 0 },
                 { label: "Runs", value: p?.runs ?? 0 },
@@ -710,70 +701,62 @@ function LiveRoom({
               ].map((s) => (
                 <div key={s.label} className="rounded-lg bg-background/60 p-2 text-center">
                   <p className="text-[10px] uppercase tracking-widest text-muted-foreground">{s.label}</p>
-                  <p className="text-2xl font-bold tabular-nums">{s.value}</p>
+                  <p className="text-xl sm:text-2xl font-bold tabular-nums">{s.value}</p>
                 </div>
               ))}
             </div>
           </div>
         </div>
+      </div>
 
-        {myTeams.length === 0 && (
-          <div className="mt-5 grid grid-cols-2 gap-3">
-            <div className="rounded-lg bg-background/60 p-3">
-              <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Current bid</p>
-              <p className="text-3xl font-extrabold truncate">{highBid ? `${highBid.team?.name}` : "No bids yet"}</p>
-              <p className="text-sm text-muted-foreground">{highBid ? highBid.amount.toLocaleString() : (0).toLocaleString()}</p>
-            </div>
-            <div className="rounded-lg bg-background/60 p-3">
-              <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Next bid</p>
-              <p className="text-2xl font-bold">{nextAmount.toLocaleString()}</p>
-              <p className="text-xs text-muted-foreground">+{(nextAmount - (highBid?.amount ?? auction.baseline_price)).toLocaleString()}</p>
-            </div>
+      {/* Sticky bid panel — pinned to bottom of viewport so users never have to scroll for bid actions */}
+      <div className="sticky bottom-2 z-30 space-y-2">
+        <div className="rounded-xl border border-primary/40 bg-card/95 backdrop-blur shadow-lg p-3 grid grid-cols-2 gap-3">
+          <div className="rounded-lg bg-background/60 p-2 min-w-0">
+            <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Current bid</p>
+            <p className="text-xl sm:text-2xl font-extrabold truncate leading-tight">{highBid ? highBid.team?.name : "No bids yet"}</p>
+            <p className="text-xl sm:text-2xl font-extrabold tabular-nums leading-tight">{highBid ? highBid.amount.toLocaleString() : (0).toLocaleString()}</p>
           </div>
-        )}
+          <div className="rounded-lg bg-background/60 p-2 min-w-0">
+            <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Next bid</p>
+            <p className="text-xl sm:text-2xl font-extrabold tabular-nums leading-tight">{nextAmount.toLocaleString()}</p>
+            <p className="text-xs text-muted-foreground">+{(nextAmount - (highBid?.amount ?? auction.baseline_price)).toLocaleString()}</p>
+          </div>
+        </div>
 
         {myTeams.length > 0 && (
-          <div className="mt-5 rounded-lg bg-background/60 p-3">
-            <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Current bid</p>
-            <p className="text-3xl font-extrabold truncate">{highBid ? highBid.team?.name : "No bids yet"}</p>
-            <p className="text-sm text-muted-foreground">{highBid ? highBid.amount.toLocaleString() : (0).toLocaleString()}</p>
+          <div className="rounded-xl border border-border bg-card/95 backdrop-blur shadow-lg p-3 space-y-2">
+            <div className="flex flex-wrap gap-2">
+              {myTeams.map((at) => (
+                <button
+                  key={at.team.id}
+                  onClick={() => setSelectedTeam(at.team.id)}
+                  className={`text-xs rounded-full px-3 py-1.5 border ${selectedTeam === at.team.id ? "border-primary bg-primary/15" : "border-border bg-muted"}`}
+                >
+                  {at.team.name} · {at.budget_remaining.toLocaleString()}
+                </button>
+              ))}
+            </div>
+            <Button
+              className="w-full h-12 text-base font-bold"
+              onClick={() => placeBid.mutate()}
+              disabled={placeBid.isPending || !selectedTeam || expired || isPaused || (leadingTeam?.team?.id === selectedTeam) || bidBlocked}
+              title={blockedReason ?? undefined}
+            >
+              <Gavel className="h-4 w-4 mr-2" />
+              {isPaused
+                ? "Paused"
+                : expired
+                  ? "Round closed"
+                  : leadingTeam?.team?.id === selectedTeam
+                  ? "You're leading"
+                  : blockedReason
+                    ? blockedReason
+                    : `Bid ${nextAmount.toLocaleString()}`}
+            </Button>
           </div>
         )}
       </div>
-
-      {myTeams.length > 0 && (
-        <div className="rounded-xl border border-border bg-card p-4 space-y-3">
-          <p className="text-[10px] uppercase tracking-widest font-bold text-muted-foreground">Bid as</p>
-          <div className="flex flex-wrap gap-2">
-            {myTeams.map((at) => (
-              <button
-                key={at.team.id}
-                onClick={() => setSelectedTeam(at.team.id)}
-                className={`text-xs rounded-full px-3 py-1.5 border ${selectedTeam === at.team.id ? "border-primary bg-primary/15" : "border-border bg-muted"}`}
-              >
-                {at.team.name} · {at.budget_remaining.toLocaleString()}
-              </button>
-            ))}
-          </div>
-          <Button
-            className="w-full h-14 text-lg font-bold"
-            onClick={() => placeBid.mutate()}
-            disabled={placeBid.isPending || !selectedTeam || expired || isPaused || (leadingTeam?.team?.id === selectedTeam) || bidBlocked}
-            title={blockedReason ?? undefined}
-          >
-            <Gavel className="h-4 w-4 mr-2" />
-            {isPaused
-              ? "Paused"
-              : expired
-                ? "Round closed"
-                : leadingTeam?.team?.id === selectedTeam
-                ? "You're leading"
-                : blockedReason
-                  ? blockedReason
-                  : `Bid ${nextAmount.toLocaleString()}`}
-          </Button>
-        </div>
-      )}
 
       {isAdmin && (
         <div className="space-y-2">
