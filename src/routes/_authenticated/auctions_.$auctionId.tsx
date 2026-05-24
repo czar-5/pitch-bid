@@ -802,6 +802,7 @@ function LiveRoom({
 }
 
 function PreviousBidHistory({ auctionPlayerId, player }: { auctionPlayerId: string; player: any }) {
+  void 0;
   const bidsQ = useQuery({
     queryKey: ["bids-history", auctionPlayerId],
     queryFn: async () => {
