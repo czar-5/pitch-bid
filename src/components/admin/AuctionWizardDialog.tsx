@@ -40,7 +40,8 @@ const NO_SPIN =
 
 const STEPS = ["Basics", "Money rules", "Teams", "Players", "Review"] as const;
 
-export function AuctionWizardDialog({ trigger }: { trigger: React.ReactNode }) {
+export function AuctionWizardDialog({ trigger, auctionId }: { trigger: React.ReactNode; auctionId?: string }) {
+  const isEdit = !!auctionId;
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState(0);
   const [state, setState] = useState<WizardState>(initial);
@@ -67,6 +68,43 @@ export function AuctionWizardDialog({ trigger }: { trigger: React.ReactNode }) {
       setTimeout(() => { setStep(0); setState(initial()); }, 200);
     }
   }, [open]);
+
+  // Load existing auction when editing
+  const existingQ = useQuery({
+    queryKey: ["auction-edit", auctionId],
+    enabled: open && isEdit,
+    queryFn: async () => {
+      const [a, at, ap] = await Promise.all([
+        supabase.from("auctions").select("*").eq("id", auctionId!).single(),
+        supabase.from("auction_teams").select("team_id").eq("auction_id", auctionId!),
+        supabase.from("auction_players").select("player_id,auction_order").eq("auction_id", auctionId!).order("auction_order", { ascending: true }),
+      ]);
+      if (a.error) throw a.error;
+      if (at.error) throw at.error;
+      if (ap.error) throw ap.error;
+      return { auction: a.data, teams: at.data, players: ap.data };
+    },
+  });
+
+  useEffect(() => {
+    if (!open || !isEdit || !existingQ.data) return;
+    const { auction, teams, players } = existingQ.data;
+    const scheduled = new Date(auction.scheduled_at);
+    const rules = (auction.bid_rules_json as BidRule[] | null) ?? DEFAULT_BID_RULES;
+    setState({
+      name: auction.name,
+      scheduledDate: scheduled,
+      scheduledTime: `${String(scheduled.getHours()).padStart(2, "0")}:${String(scheduled.getMinutes()).padStart(2, "0")}`,
+      team_budget: auction.team_budget,
+      baseline_price: auction.baseline_price,
+      round_closure_seconds: auction.round_closure_seconds,
+      min_players_per_team: auction.min_players_per_team,
+      max_players_per_team: auction.max_players_per_team,
+      bid_rules: rules.length ? rules : DEFAULT_BID_RULES,
+      selectedTeams: new Set(teams.map((t) => t.team_id)),
+      selectedPlayers: new Set(players.map((p) => p.player_id)),
+    });
+  }, [open, isEdit, existingQ.data]);
 
   const teamsQ = useQuery({
     queryKey: ["teams-pick"],
@@ -95,31 +133,42 @@ export function AuctionWizardDialog({ trigger }: { trigger: React.ReactNode }) {
       const scheduled = new Date(state.scheduledDate);
       scheduled.setHours(hh, mm, 0, 0);
 
-      const { data: auction, error } = await supabase
-        .from("auctions")
-        .insert({
-          name: state.name,
-          scheduled_at: scheduled.toISOString(),
-          team_budget: state.team_budget,
-          baseline_price: state.baseline_price,
-          round_closure_seconds: state.round_closure_seconds,
-          min_players_per_team: state.min_players_per_team,
-          max_players_per_team: state.max_players_per_team,
-          bid_rules_json: state.bid_rules.map((r, i, arr) => ({
-            min: i === 0 ? state.baseline_price : (arr[i - 1].max ?? state.baseline_price),
-            max: r.max,
-            increment: r.increment,
-          })),
-          status: "upcoming",
-        })
-        .select("id")
-        .single();
-      if (error) throw error;
-      const auctionId = auction.id;
+      const payload = {
+        name: state.name,
+        scheduled_at: scheduled.toISOString(),
+        team_budget: state.team_budget,
+        baseline_price: state.baseline_price,
+        round_closure_seconds: state.round_closure_seconds,
+        min_players_per_team: state.min_players_per_team,
+        max_players_per_team: state.max_players_per_team,
+        bid_rules_json: state.bid_rules.map((r, i, arr) => ({
+          min: i === 0 ? state.baseline_price : (arr[i - 1].max ?? state.baseline_price),
+          max: r.max,
+          increment: r.increment,
+        })),
+      };
+
+      let savedId: string;
+      if (isEdit && auctionId) {
+        const { error } = await supabase.from("auctions").update(payload).eq("id", auctionId);
+        if (error) throw error;
+        savedId = auctionId;
+        // Replace teams and players (auction is still upcoming, no bids yet)
+        await supabase.from("auction_players").delete().eq("auction_id", savedId);
+        await supabase.from("auction_teams").delete().eq("auction_id", savedId);
+      } else {
+        const { data: auction, error } = await supabase
+          .from("auctions")
+          .insert({ ...payload, status: "upcoming" })
+          .select("id")
+          .single();
+        if (error) throw error;
+        savedId = auction.id;
+      }
 
       if (state.selectedTeams.size > 0) {
         const teamRows = Array.from(state.selectedTeams).map((team_id) => ({
-          auction_id: auctionId,
+          auction_id: savedId,
           team_id,
           budget_remaining: state.team_budget,
         }));
@@ -129,7 +178,7 @@ export function AuctionWizardDialog({ trigger }: { trigger: React.ReactNode }) {
 
       if (state.selectedPlayers.size > 0) {
         const playerRows = Array.from(state.selectedPlayers).map((player_id, i) => ({
-          auction_id: auctionId,
+          auction_id: savedId,
           player_id,
           auction_order: i + 1,
           status: "queued" as const,
@@ -138,11 +187,16 @@ export function AuctionWizardDialog({ trigger }: { trigger: React.ReactNode }) {
         if (e3) throw e3;
       }
 
-      return auctionId;
+      return savedId;
     },
     onSuccess: () => {
-      toast.success("Auction created");
+      toast.success(isEdit ? "Auction updated" : "Auction created");
       qc.invalidateQueries({ queryKey: ["auctions"] });
+      if (isEdit && auctionId) {
+        qc.invalidateQueries({ queryKey: ["auction", auctionId] });
+        qc.invalidateQueries({ queryKey: ["auction-teams", auctionId] });
+        qc.invalidateQueries({ queryKey: ["auction-players", auctionId] });
+      }
       setOpen(false);
     },
     onError: (e: Error) => toast.error(e.message),
@@ -168,7 +222,7 @@ export function AuctionWizardDialog({ trigger }: { trigger: React.ReactNode }) {
       <DialogTrigger asChild>{trigger}</DialogTrigger>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>New Auction · {STEPS[step]}</DialogTitle>
+          <DialogTitle>{isEdit ? "Edit Auction" : "New Auction"} · {STEPS[step]}</DialogTitle>
         </DialogHeader>
 
         <div className="flex items-center gap-1 mb-2">
@@ -194,7 +248,7 @@ export function AuctionWizardDialog({ trigger }: { trigger: React.ReactNode }) {
           ) : (
             <Button onClick={() => create.mutate()} disabled={create.isPending}>
               {create.isPending && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
-              Create auction
+              {isEdit ? "Save changes" : "Create auction"}
             </Button>
           )}
         </div>
