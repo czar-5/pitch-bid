@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
-import { createFileRoute } from "@tanstack/react-router";
-import { User, Mail, Shield, Calendar } from "lucide-react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { User, Mail, Shield, Calendar, LogIn } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/_authenticated/profile")({
   component: ProfilePage,
@@ -19,14 +20,14 @@ interface ProfileData {
 }
 
 function ProfilePage() {
-  const { user, roles } = useAuth();
+  const { user, roles, isAuthenticated } = useAuth();
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [fetchedRoles, setFetchedRoles] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function loadProfile() {
-      if (!user) return;
+      if (!user) { setLoading(false); return; }
       const [{ data: p }, { data: r }] = await Promise.all([
         supabase.from("profiles").select("name, email, created_at").eq("id", user.id).single(),
         supabase.from("user_roles").select("role").eq("user_id", user.id),
@@ -38,9 +39,12 @@ function ProfilePage() {
     loadProfile();
   }, [user]);
 
-  const displayRoles = (roles && roles.length > 0 ? roles : fetchedRoles) as string[];
+  const isGuest = !isAuthenticated;
+  const displayRoles = isGuest
+    ? ["viewer"]
+    : ((roles && roles.length > 0 ? roles : fetchedRoles) as string[]);
 
-  const displayName = profile?.name || user?.email?.split("@")[0] || "User";
+  const displayName = isGuest ? "Guest" : (profile?.name || user?.email?.split("@")[0] || "User");
   const initials = displayName
     .split(" ")
     .map((n) => n[0])
@@ -97,6 +101,18 @@ function ProfilePage() {
             </div>
           </div>
         </CardHeader>
+        {isGuest ? (
+          <CardContent className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              You're browsing as a guest with view-only access. Sign in to manage teams and place bids.
+            </p>
+            <Button asChild className="w-full">
+              <Link to="/login">
+                <LogIn className="h-4 w-4 mr-2" /> Log in
+              </Link>
+            </Button>
+          </CardContent>
+        ) : (
         <CardContent className="space-y-4">
           <div className="flex items-center gap-3 text-sm">
             <Mail className="h-4 w-4 text-muted-foreground shrink-0" />
@@ -126,6 +142,7 @@ function ProfilePage() {
             </span>
           </div>
         </CardContent>
+        )}
       </Card>
     </div>
   );

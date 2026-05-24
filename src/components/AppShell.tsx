@@ -11,9 +11,9 @@ const nav = [
 ] as const;
 
 export function AppShell() {
-  const { user, isAdmin, signOut } = useAuth();
+  const { user, isAdmin, signOut, isAuthenticated } = useAuth();
   const router = useRouter();
-  const initial = (user?.user_metadata?.name || user?.user_metadata?.full_name || user?.email || "U")
+  const initial = (user?.user_metadata?.name || user?.user_metadata?.full_name || user?.email || "G")
     .trim()
     .charAt(0)
     .toUpperCase();
@@ -52,14 +52,16 @@ export function AppShell() {
             >
               {initial}
             </Link>
-            <Button
-              size="icon"
-              variant="ghost"
-              onClick={async () => { await signOut(); router.navigate({ to: "/login" }); }}
-              aria-label="Sign out"
-            >
-              <LogOut className="h-4 w-4" />
-            </Button>
+            {isAuthenticated && (
+              <Button
+                size="icon"
+                variant="ghost"
+                onClick={async () => { await signOut(); router.navigate({ to: "/auctions" }); }}
+                aria-label="Sign out"
+              >
+                <LogOut className="h-4 w-4" />
+              </Button>
+            )}
           </div>
         </div>
       </header>
