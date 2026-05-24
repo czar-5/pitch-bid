@@ -1,52 +1,48 @@
-## Add min/max players per team to auctions
+## Hide and randomize player auction order
 
-Introduce two per-auction settings — **minimum players per team (`x`)** and **maximum players per team (`y`)** — captured at auction creation, and enforce them server-side when bids are placed.
+Currently players are auctioned in the order admins picked them in the wizard (sequential `auction_order`), and the Player pool list shows that number plainly (`#1`, `#2`, …) — both the order itself and its position are visible to everyone.
 
-### Behavior
+Goal: shuffle the order when the auction lobby opens, and never reveal it in any UI.
 
-1. **Max cap (`y`)**: A team that already has `y` players bought cannot place any more bids. Server rejects with a clear error.
-2. **Reserve budget (`x`)**: When a team is about to acquire its `n`-th player (1-indexed), it must retain enough budget to still buy the remaining `(x - n)` players at the baseline price. I.e. their bid amount must satisfy:
-   ```
-   budget_remaining - bid_amount ≥ max(0, (x - n)) * baseline_price
-   ```
-   where `n = players_bought + 1`. Once `n ≥ x` the reserve becomes 0 and only the normal "enough budget for this bid" rule applies.
+### Database change (migration)
 
-### Database changes (migration)
+Update `public.start_auction(_auction_id uuid)` so that, right before flipping the auction to `lobby`, it reassigns `auction_order` for every `queued` player to a fresh random sequence (1..N). Use `row_number() over (order by random())` inside a CTE:
 
-- Add two columns to `auctions`:
-  - `min_players_per_team integer NOT NULL DEFAULT 10`
-  - `max_players_per_team integer NOT NULL DEFAULT 12`
-- Update `public.place_bid(_auction_player_id, _team_id)`:
-  - After resolving `_next` (the proposed bid amount) and reading the team's `players_bought` and `budget_remaining`, plus the auction's `min_players_per_team`, `max_players_per_team`, and `baseline_price`:
-    - If `players_bought >= max_players_per_team` → `RAISE EXCEPTION 'team has reached max players (y)'`.
-    - Compute `remaining_min := GREATEST(0, min_players_per_team - (players_bought + 1))`.
-    - Require `budget_remaining - _next >= remaining_min * baseline_price`, otherwise `RAISE EXCEPTION 'must reserve budget for minimum players'`.
-  - Existing `insufficient budget` check stays as the lower bound.
+```sql
+WITH shuffled AS (
+  SELECT id, row_number() OVER (ORDER BY random()) AS new_order
+  FROM auction_players
+  WHERE auction_id = _auction_id AND status = 'queued'
+)
+UPDATE auction_players ap
+   SET auction_order = s.new_order
+  FROM shuffled s
+ WHERE ap.id = s.id;
+```
 
-No RLS changes needed; both checks live inside the existing SECURITY DEFINER function.
+This runs inside the existing SECURITY DEFINER function, so the shuffle happens server-side and the result is just a column — no client ever sees the original order. `next_player` continues to pick `ORDER BY auction_order NULLS LAST, created_at`, so the live flow is unchanged.
 
-### UI changes
+The recycle path in `next_player` (when unsold players go back into the queue) keeps their existing `auction_order`, which is fine — that order was already random.
 
-**`src/components/admin/AuctionWizardDialog.tsx`** — Step 2 ("Money rules"):
-- Add two number inputs next to the existing ones: **Min players / team** (default `10`) and **Max players / team** (default `12`).
-- Validation in `canAdvance()` for step 1: `max >= 1`, `min >= 0`, `min <= max`.
-- Include both in the `auctions` insert payload.
-- Show both in Step 5 (Review).
+### Frontend changes — `src/routes/_authenticated/auctions_.$auctionId.tsx`
 
-**`src/routes/_authenticated/auctions_.$auctionId.tsx`** — upcoming auction header card:
-- Add a small "Squad size: min `x` · max `y`" line near the Baseline chip / bid-slab ladder so participants see the rules before bidding.
-- In the bid panel (where team managers click "Bid"), surface a helpful disabled state + tooltip when:
-  - team has reached `y` players, OR
-  - placing the next bid would break the reserve constraint.
-  This is purely advisory — the server is the source of truth.
+The Player pool section currently:
+- queries with `.order("auction_order", { nullsFirst: false })`
+- renders `#{ap.auction_order}` in every row
+
+Both leak the upcoming sequence. Change to:
+- query ordered by player name (e.g. `.order("player(first_name)")`, or sort client-side by `display_name ?? first_name + last_name`)
+- drop the `#auction_order` span entirely from the row (replace with nothing — status badge on the right is enough)
+
+Also drop `auction_order` from the `.select(...)` list so it isn't even fetched. Keep showing `status` and `sold_price` as today.
 
 ### Out of scope
 
-- No retroactive changes to existing auctions beyond the column defaults (existing rows backfill to `10` / `12`).
-- Admin "sell" / "finalize" flows already write to `auction_teams.players_bought`; no change needed there. The new caps only gate *new bids*, not admin overrides.
+- The wizard still inserts players with sequential `auction_order: i + 1`; that placeholder is overwritten the moment the admin opens the lobby. No change needed there.
+- Admin live controls (Next / Sell / Skip) don't need changes — they just trust the (now random) order.
+- Bid history, leaderboards, and team rosters don't expose `auction_order`.
 
 ### Files touched
 
-- New migration (adds 2 columns + replaces `place_bid`).
-- `src/components/admin/AuctionWizardDialog.tsx` — wizard form + insert payload + review.
-- `src/routes/_authenticated/auctions_.$auctionId.tsx` — show squad size, advisory disable on bid button.
+- New migration replacing `public.start_auction`.
+- `src/routes/_authenticated/auctions_.$auctionId.tsx` — player pool query + row rendering.
