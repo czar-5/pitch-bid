@@ -24,6 +24,8 @@ type WizardState = {
   team_budget: number;
   baseline_price: number;
   round_closure_seconds: number;
+  min_players_per_team: number;
+  max_players_per_team: number;
   bid_rules: BidRule[];
   selectedTeams: Set<string>;
   selectedPlayers: Set<string>;
@@ -52,6 +54,8 @@ export function AuctionWizardDialog({ trigger }: { trigger: React.ReactNode }) {
       team_budget: 100000,
       baseline_price: 500,
       round_closure_seconds: 15,
+      min_players_per_team: 10,
+      max_players_per_team: 12,
       bid_rules: DEFAULT_BID_RULES,
       selectedTeams: new Set(),
       selectedPlayers: new Set(),
@@ -99,6 +103,8 @@ export function AuctionWizardDialog({ trigger }: { trigger: React.ReactNode }) {
           team_budget: state.team_budget,
           baseline_price: state.baseline_price,
           round_closure_seconds: state.round_closure_seconds,
+          min_players_per_team: state.min_players_per_team,
+          max_players_per_team: state.max_players_per_team,
           bid_rules_json: state.bid_rules.map((r, i, arr) => ({
             min: i === 0 ? state.baseline_price : (arr[i - 1].max ?? state.baseline_price),
             max: r.max,
@@ -144,7 +150,14 @@ export function AuctionWizardDialog({ trigger }: { trigger: React.ReactNode }) {
 
   function canAdvance() {
     if (step === 0) return state.name.trim().length > 0 && !!state.scheduledDate;
-    if (step === 1) return state.team_budget > 0 && state.baseline_price > 0 && state.round_closure_seconds > 0;
+    if (step === 1) return (
+      state.team_budget > 0 &&
+      state.baseline_price > 0 &&
+      state.round_closure_seconds > 0 &&
+      state.min_players_per_team >= 0 &&
+      state.max_players_per_team >= 1 &&
+      state.min_players_per_team <= state.max_players_per_team
+    );
     if (step === 2) return state.selectedTeams.size >= 2;
     if (step === 3) return state.selectedPlayers.size >= 1;
     return true;
@@ -247,6 +260,13 @@ function StepMoney({ state, setState }: { state: WizardState; setState: Setter }
         <div><Label>Baseline price</Label><Input type="number" className={NO_SPIN} value={state.baseline_price} onChange={(e) => setState((s) => ({ ...s, baseline_price: Number(e.target.value) }))} /></div>
         <div><Label>Round closure (sec)</Label><Input type="number" className={NO_SPIN} value={state.round_closure_seconds} onChange={(e) => setState((s) => ({ ...s, round_closure_seconds: Number(e.target.value) }))} /></div>
       </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div><Label>Min players / team</Label><Input type="number" className={NO_SPIN} value={state.min_players_per_team} onChange={(e) => setState((s) => ({ ...s, min_players_per_team: Number(e.target.value) }))} /></div>
+        <div><Label>Max players / team</Label><Input type="number" className={NO_SPIN} value={state.max_players_per_team} onChange={(e) => setState((s) => ({ ...s, max_players_per_team: Number(e.target.value) }))} /></div>
+      </div>
+      {state.min_players_per_team > state.max_players_per_team && (
+        <p className="text-xs text-destructive">Min players cannot exceed max players.</p>
+      )}
       <div>
         <Label>Bid increment</Label>
         <div className="mt-2 space-y-2">
@@ -376,6 +396,7 @@ function StepReview({ state, teams, players }: { state: WizardState; teams: Team
       <Row label="Team budget" value={state.team_budget.toLocaleString()} />
       <Row label="Baseline" value={state.baseline_price.toLocaleString()} />
       <Row label="Round closure" value={`${state.round_closure_seconds}s`} />
+      <Row label="Squad size" value={`min ${state.min_players_per_team} · max ${state.max_players_per_team}`} />
       <Row label="Bid rules" value={`${state.bid_rules.length} tiers`} />
       <Row label="Teams" value={`${teamNames.length} · ${teamNames.slice(0, 4).join(", ")}${teamNames.length > 4 ? "…" : ""}`} />
       <Row label="Players" value={`${state.selectedPlayers.size} of ${players.length}`} />

@@ -1,37 +1,52 @@
-## Add a bid-slab ladder to the auction header
+## Add min/max players per team to auctions
 
-On the auction detail page, the header card (the one in your screenshot showing name, schedule, budget, baseline) does not communicate the bidding step rules. Add a compact visual at the bottom of that card that shows each slab boundary and the increment between them.
+Introduce two per-auction settings — **minimum players per team (`x`)** and **maximum players per team (`y`)** — captured at auction creation, and enforce them server-side when bids are placed.
 
-### Visual design
+### Behavior
 
-A horizontal "ladder" rail spanning the full width of the card footer:
+1. **Max cap (`y`)**: A team that already has `y` players bought cannot place any more bids. Server rejects with a clear error.
+2. **Reserve budget (`x`)**: When a team is about to acquire its `n`-th player (1-indexed), it must retain enough budget to still buy the remaining `(x - n)` players at the baseline price. I.e. their bid amount must satisfy:
+   ```
+   budget_remaining - bid_amount ≥ max(0, (x - n)) * baseline_price
+   ```
+   where `n = players_bought + 1`. Once `n ≥ x` the reserve becomes 0 and only the normal "enough budget for this bid" rule applies.
 
-```text
-   +50            +100              +500
-●━━━━━━━━━●━━━━━━━━━━━━━━●━━━━━━━━━━━━━━▶
-500       1,000           5,000          ∞
-baseline                                  no cap
-```
+### Database changes (migration)
 
-- A thin horizontal rule (`border-border`, 2px) runs across the card.
-- A filled circle (primary color) sits at each slab boundary: the baseline price, then each `min`/`max` from `bid_rules_json`. The final open-ended slab ends in a right-pointing chevron / arrow instead of a circle.
-- Below each dot: the price (e.g. `500`, `1,000`, `5,000`). The first one is labeled `Baseline`; the last gets `No cap`.
-- Above each segment, centered between its two dots: `+50`, `+100`, `+500` as small pill badges (`bg-muted`, monospace-ish, `text-xs`).
-- The ladder uses `flex` with each segment as `flex-1` so it scales responsively. On narrow viewports (<480px) it stacks the increment badge above and price below in a smaller variant.
+- Add two columns to `auctions`:
+  - `min_players_per_team integer NOT NULL DEFAULT 10`
+  - `max_players_per_team integer NOT NULL DEFAULT 12`
+- Update `public.place_bid(_auction_player_id, _team_id)`:
+  - After resolving `_next` (the proposed bid amount) and reading the team's `players_bought` and `budget_remaining`, plus the auction's `min_players_per_team`, `max_players_per_team`, and `baseline_price`:
+    - If `players_bought >= max_players_per_team` → `RAISE EXCEPTION 'team has reached max players (y)'`.
+    - Compute `remaining_min := GREATEST(0, min_players_per_team - (players_bought + 1))`.
+    - Require `budget_remaining - _next >= remaining_min * baseline_price`, otherwise `RAISE EXCEPTION 'must reserve budget for minimum players'`.
+  - Existing `insufficient budget` check stays as the lower bound.
 
-### Alternative considered
+No RLS changes needed; both checks live inside the existing SECURITY DEFINER function.
 
-A simple table of slabs (Range / Increment) was considered but rejected — the ladder reads in one glance, fits the broadcast feel of the rest of the page, and pairs naturally with the existing Baseline chip.
+### UI changes
 
-### Scope
+**`src/components/admin/AuctionWizardDialog.tsx`** — Step 2 ("Money rules"):
+- Add two number inputs next to the existing ones: **Min players / team** (default `10`) and **Max players / team** (default `12`).
+- Validation in `canAdvance()` for step 1: `max >= 1`, `min >= 0`, `min <= max`.
+- Include both in the `auctions` insert payload.
+- Show both in Step 5 (Review).
 
-- Only the upcoming/non-minimal header card. Hidden during live rounds (already inside the `{!minimal && ...}` block).
-- Read-only — no schema or RLS change. Pulls from `auction.bid_rules_json` and `auction.baseline_price` already loaded.
+**`src/routes/_authenticated/auctions_.$auctionId.tsx`** — upcoming auction header card:
+- Add a small "Squad size: min `x` · max `y`" line near the Baseline chip / bid-slab ladder so participants see the rules before bidding.
+- In the bid panel (where team managers click "Bid"), surface a helpful disabled state + tooltip when:
+  - team has reached `y` players, OR
+  - placing the next bid would break the reserve constraint.
+  This is purely advisory — the server is the source of truth.
 
-### Files
+### Out of scope
 
-- `src/routes/_authenticated/auctions_.$auctionId.tsx`
-  - Add a `BidSlabLadder` component (same file, near the bottom with the other small components).
-  - Render `<BidSlabLadder baseline={a.baseline_price} rules={a.bid_rules_json} />` inside the header card, below the meta row (after the `Baseline` chip line, separated by a `border-t border-border pt-4 mt-4`).
+- No retroactive changes to existing auctions beyond the column defaults (existing rows backfill to `10` / `12`).
+- Admin "sell" / "finalize" flows already write to `auction_teams.players_bought`; no change needed there. The new caps only gate *new bids*, not admin overrides.
 
-No other files change.
+### Files touched
+
+- New migration (adds 2 columns + replaces `place_bid`).
+- `src/components/admin/AuctionWizardDialog.tsx` — wizard form + insert payload + review.
+- `src/routes/_authenticated/auctions_.$auctionId.tsx` — show squad size, advisory disable on bid button.
