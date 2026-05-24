@@ -516,9 +516,12 @@ function LiveRoom({
     const t = setInterval(() => setNow(Date.now()), 250);
     return () => clearInterval(t);
   }, []);
-  const remaining = currentAp?.round_ends_at
-    ? Math.max(0, Math.ceil((new Date(currentAp.round_ends_at).getTime() - now) / 1000))
-    : null;
+  const isPaused = currentAp?.paused_remaining_seconds != null;
+  const remaining = isPaused
+    ? (currentAp?.paused_remaining_seconds as number)
+    : currentAp?.round_ends_at
+      ? Math.max(0, Math.ceil((new Date(currentAp.round_ends_at).getTime() - now) / 1000))
+      : null;
 
   const highBid = bidsQ.data?.[0] ?? null;
   const nextAmount = useMemo(() => {
@@ -612,8 +615,8 @@ function LiveRoom({
 
   const p = currentAp.player;
   const leadingTeam = highBid ? teams.find((t) => t.team?.id === highBid.team?.id) : null;
-  const expired = remaining != null && remaining <= 0;
-  const bigTimer = remaining != null && remaining <= 5;
+  const expired = !isPaused && remaining != null && remaining <= 0;
+  const bigTimer = !isPaused && remaining != null && remaining <= 5;
 
   const selectedAt = selectedTeam ? myTeams.find((t) => t.team?.id === selectedTeam) : null;
   const minPlayers = (auction.min_players_per_team as number) ?? 0;
@@ -646,7 +649,8 @@ function LiveRoom({
           </div>
           {remaining != null && !bigTimer && (
             <div className="flex items-center gap-1 text-lg font-mono font-bold text-foreground">
-              <Timer className="h-4 w-4" /> {remaining}s
+              {isPaused ? <Pause className="h-4 w-4" /> : <Timer className="h-4 w-4" />}
+              {remaining}s{isPaused ? " (paused)" : ""}
             </div>
           )}
         </div>
@@ -714,10 +718,26 @@ function LiveRoom({
       )}
 
       {isAdmin && (
-        <Button className="w-full" onClick={() => finalize.mutate()} disabled={finalize.isPending}>
-          <ChevronsRight className="h-4 w-4 mr-1" />
-          {highBid ? `Sell to ${highBid.team?.name} for ${highBid.amount.toLocaleString()} · Next` : "Mark unsold · Next"}
-        </Button>
+        <div className="space-y-2">
+          <div className="grid grid-cols-2 gap-2">
+            {isPaused ? (
+              <Button variant="outline" onClick={() => resumeRound.mutate()} disabled={resumeRound.isPending}>
+                <Play className="h-4 w-4 mr-1" /> Resume timer
+              </Button>
+            ) : (
+              <Button variant="outline" onClick={() => pauseRound.mutate()} disabled={pauseRound.isPending}>
+                <Pause className="h-4 w-4 mr-1" /> Pause timer
+              </Button>
+            )}
+            <Button variant="outline" onClick={() => resetRound.mutate()} disabled={resetRound.isPending}>
+              <RotateCcw className="h-4 w-4 mr-1" /> Reset timer
+            </Button>
+          </div>
+          <Button className="w-full" onClick={() => finalize.mutate()} disabled={finalize.isPending}>
+            <ChevronsRight className="h-4 w-4 mr-1" />
+            {highBid ? `Sell to ${highBid.team?.name} for ${highBid.amount.toLocaleString()} · Next` : "Mark unsold · Next"}
+          </Button>
+        </div>
       )}
     </div>
   );
