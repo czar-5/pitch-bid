@@ -622,6 +622,19 @@ function LiveRoom({
 
   if (!currentAp) {
     return (
+      <IntermissionRoom
+        auctionId={auctionId}
+        lastFinalizedAp={lastFinalizedAp}
+        isAdmin={isAdmin}
+        onNext={() => next.mutate()}
+        nextPending={next.isPending}
+      />
+    );
+  }
+
+  // (legacy intermission block removed — handled by IntermissionRoom)
+  if (false) {
+    return (
       <div className="rounded-xl border border-primary/40 bg-gradient-to-br from-primary/10 to-card p-6 text-center space-y-3">
         {lastFinalizedAp ? (
           <>
