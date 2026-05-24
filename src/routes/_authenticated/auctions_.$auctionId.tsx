@@ -222,18 +222,56 @@ function AuctionDetail() {
         <h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-3">
           Player pool ({playersQ.data?.length ?? 0})
         </h2>
-        <div className="rounded-xl border border-border bg-card divide-y divide-border">
-          {playersQ.data?.map((ap) => (
-            <div key={ap.id} className="p-3 flex items-center gap-3 text-sm">
-              <div className="flex-1 min-w-0">
-                <p className="font-medium truncate">{ap.player?.display_name ?? `${ap.player?.first_name} ${ap.player?.last_name}`}</p>
-                <p className="text-xs text-muted-foreground capitalize">{ap.player?.player_role.replace("_", " ")}</p>
+        {(() => {
+          const all = playersQ.data ?? [];
+          const sold = all.filter((ap) => ap.status === "sold");
+          const unsold = all.filter((ap) => ap.status !== "sold");
+          const teamById = new Map((teamsQ.data ?? []).map((t: any) => [t.team?.id, t.team]));
+          const renderRow = (ap: any) => {
+            const team = ap.sold_team_id ? teamById.get(ap.sold_team_id) : null;
+            return (
+              <div key={ap.id} className="p-3 flex items-center gap-3 text-sm">
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium truncate">{ap.player?.display_name ?? `${ap.player?.first_name} ${ap.player?.last_name}`}</p>
+                  <p className="text-xs text-muted-foreground capitalize">{ap.player?.player_role.replace("_", " ")}</p>
+                </div>
+                {ap.sold_price != null && <span className="text-xs text-muted-foreground">{ap.sold_price.toLocaleString()}</span>}
+                {team && (
+                  <div
+                    className="h-7 w-7 rounded bg-muted overflow-hidden flex items-center justify-center text-[10px] font-bold flex-shrink-0"
+                    style={{ background: team.primary_color ?? undefined }}
+                    title={team.name}
+                  >
+                    {team.logo_url
+                      ? <img src={team.logo_url} alt={team.name} className="h-full w-full object-cover" />
+                      : team.name.slice(0, 2).toUpperCase()}
+                  </div>
+                )}
+                <span className="text-xs rounded-full bg-muted px-2 py-0.5 capitalize">{ap.status}</span>
               </div>
-              {ap.sold_price != null && <span className="text-xs text-muted-foreground">{ap.sold_price.toLocaleString()}</span>}
-              <span className="text-xs rounded-full bg-muted px-2 py-0.5 capitalize">{ap.status}</span>
+            );
+          };
+          return (
+            <div className="space-y-4">
+              <div>
+                <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-2">Available ({unsold.length})</p>
+                <div className="rounded-xl border border-border bg-card divide-y divide-border">
+                  {unsold.length === 0
+                    ? <p className="p-3 text-xs text-muted-foreground">None</p>
+                    : unsold.map(renderRow)}
+                </div>
+              </div>
+              <div>
+                <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-2">Sold ({sold.length})</p>
+                <div className="rounded-xl border border-border bg-card divide-y divide-border">
+                  {sold.length === 0
+                    ? <p className="p-3 text-xs text-muted-foreground">None yet</p>
+                    : sold.map(renderRow)}
+                </div>
+              </div>
             </div>
-          ))}
-        </div>
+          );
+        })()}
       </section>
       )}
 
