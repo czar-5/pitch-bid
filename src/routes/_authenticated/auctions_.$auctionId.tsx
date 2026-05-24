@@ -49,7 +49,7 @@ function AuctionDetail() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("auction_players")
-        .select("id,status,sold_price,sold_team_id,round_ends_at,paused_remaining_seconds,player:players(id,name,role,photo,batting_style,bowling_style)")
+        .select("id,status,sold_price,sold_team_id,round_ends_at,paused_remaining_seconds,player:players(id,name,role,photo,batting_style,bowling_style,matches,runs,wickets,batting_avg,batting_sr)")
         .eq("auction_id", auctionId)
         .order("name", { foreignTable: "players", ascending: true });
       if (error) throw error;
