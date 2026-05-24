@@ -670,37 +670,72 @@ function LiveRoom({
   return (
     <div className="space-y-4">
       <div className="rounded-xl border border-primary/40 bg-gradient-to-br from-primary/15 to-card p-5">
-        <div className="flex items-start gap-4">
-          <div className="h-20 w-20 rounded-xl bg-muted overflow-hidden flex-shrink-0">
+        <div className="flex flex-col sm:flex-row items-start gap-5">
+          <div className="h-48 w-48 sm:h-56 sm:w-56 rounded-xl bg-muted overflow-hidden flex-shrink-0 mx-auto sm:mx-0">
             {p?.photo
               ? <img src={p.photo} alt="" className="h-full w-full object-cover" />
-              : <div className="h-full w-full flex items-center justify-center text-2xl font-bold text-muted-foreground">{(p?.name ?? "?")[0]}</div>}
+              : <div className="h-full w-full flex items-center justify-center text-5xl font-bold text-muted-foreground">{(p?.name ?? "?")[0]}</div>}
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-[10px] uppercase tracking-widest text-primary font-bold">On the block</p>
-            <h2 className="text-xl font-bold truncate">{p?.name}</h2>
-            <p className="text-xs text-muted-foreground capitalize">{p?.role?.replace(/_/g, " ")}{p?.batting_style ? ` · ${p.batting_style}` : ""}</p>
-          </div>
-          {remaining != null && !bigTimer && (
-            <div className="flex items-center gap-1 text-lg font-mono font-bold text-foreground">
-              {isPaused ? <Pause className="h-4 w-4" /> : <Timer className="h-4 w-4" />}
-              {remaining}s{isPaused ? " (paused)" : ""}
+          <div className="flex-1 min-w-0 w-full">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-[10px] uppercase tracking-widest text-primary font-bold">On the block</p>
+                <h2 className="text-2xl sm:text-3xl font-bold truncate">{p?.name}</h2>
+              </div>
+              {/* Timer slot — fixed size so the big-timer state doesn't reflow layout */}
+              <div className="relative w-20 h-16 flex-shrink-0">
+                {remaining != null && (
+                  <div
+                    className={`absolute right-0 top-0 font-mono font-bold tabular-nums flex items-center justify-end gap-1 transition-all duration-200 origin-top-right ${
+                      bigTimer
+                        ? (expired ? "text-muted-foreground" : "text-destructive animate-pulse")
+                        : "text-foreground"
+                    }`}
+                    style={bigTimer ? { fontSize: "5rem", lineHeight: 1 } : { fontSize: "1.25rem", lineHeight: 1.2 }}
+                  >
+                    {!bigTimer && (isPaused ? <Pause className="h-4 w-4" /> : <Timer className="h-4 w-4" />)}
+                    <span>{remaining}s</span>
+                  </div>
+                )}
+              </div>
             </div>
-          )}
-        </div>
-
-        {bigTimer && (
-          <div className={`mt-5 flex items-center justify-center font-mono font-bold tabular-nums ${expired ? "text-muted-foreground" : "text-destructive animate-pulse"}`} style={{ fontSize: "5rem", lineHeight: 1 }}>
-            {remaining}s
+            <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <div className="rounded-lg bg-background/60 p-2">
+                <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Role</p>
+                <p className="text-base font-bold capitalize">{p?.role?.replace(/_/g, " ") ?? "—"}</p>
+              </div>
+              <div className="rounded-lg bg-background/60 p-2">
+                <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Batting</p>
+                <p className="text-base font-bold">{p?.batting_style ?? "—"}</p>
+              </div>
+              <div className="rounded-lg bg-background/60 p-2">
+                <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Bowling</p>
+                <p className="text-base font-bold">{p?.bowling_style ?? "—"}</p>
+              </div>
+            </div>
+            <div className="mt-3 grid grid-cols-2 sm:grid-cols-5 gap-2">
+              {[
+                { label: "Matches", value: p?.matches ?? 0 },
+                { label: "Runs", value: p?.runs ?? 0 },
+                { label: "Wickets", value: p?.wickets ?? 0 },
+                { label: "Average", value: p?.batting_avg ?? 0 },
+                { label: "Strike Rate", value: p?.batting_sr ?? 0 },
+              ].map((s) => (
+                <div key={s.label} className="rounded-lg bg-background/60 p-2 text-center">
+                  <p className="text-[10px] uppercase tracking-widest text-muted-foreground">{s.label}</p>
+                  <p className="text-2xl font-bold tabular-nums">{s.value}</p>
+                </div>
+              ))}
+            </div>
           </div>
-        )}
+        </div>
 
         {myTeams.length === 0 && (
           <div className="mt-5 grid grid-cols-2 gap-3">
             <div className="rounded-lg bg-background/60 p-3">
               <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Current bid</p>
-              <p className="text-2xl font-bold">{highBid ? highBid.amount.toLocaleString() : (0).toLocaleString()}</p>
-              <p className="text-xs text-muted-foreground truncate">{highBid ? `by ${highBid.team?.name}` : "No bids yet"}</p>
+              <p className="text-3xl font-extrabold truncate">{highBid ? `${highBid.team?.name}` : "No bids yet"}</p>
+              <p className="text-sm text-muted-foreground">{highBid ? highBid.amount.toLocaleString() : (0).toLocaleString()}</p>
             </div>
             <div className="rounded-lg bg-background/60 p-3">
               <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Next bid</p>
@@ -713,8 +748,8 @@ function LiveRoom({
         {myTeams.length > 0 && (
           <div className="mt-5 rounded-lg bg-background/60 p-3">
             <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Current bid</p>
-            <p className="text-2xl font-bold">{highBid ? highBid.amount.toLocaleString() : (0).toLocaleString()}</p>
-            <p className="text-xs text-muted-foreground truncate">{highBid ? `by ${highBid.team?.name}` : "No bids yet"}</p>
+            <p className="text-3xl font-extrabold truncate">{highBid ? highBid.team?.name : "No bids yet"}</p>
+            <p className="text-sm text-muted-foreground">{highBid ? highBid.amount.toLocaleString() : (0).toLocaleString()}</p>
           </div>
         )}
       </div>
