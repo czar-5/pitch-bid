@@ -18,25 +18,33 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ImageUploader } from "./ImageUploader";
 
 const schema = z.object({
-  first_name: z.string().min(1).max(60),
-  last_name: z.string().min(1).max(60),
-  display_name: z.string().max(80).nullable().optional(),
-  player_role: z.enum(["batsman", "bowler", "all_rounder", "wicketkeeper"]),
-  country: z.string().max(60).nullable().optional(),
-  cricinfo_url: z.string().url().nullable().optional().or(z.literal("")),
-  photo_url: z.string().nullable(),
+  name: z.string().min(1).max(120),
+  role: z.enum(["batter", "bowler", "batting_allrounder", "bowling_allrounder", "wicket_keeper"]),
+  batting_style: z.string().max(60).nullable().optional(),
+  bowling_style: z.string().max(60).nullable().optional(),
+  matches: z.coerce.number().int().min(0).default(0),
+  runs: z.coerce.number().int().min(0).default(0),
+  wickets: z.coerce.number().int().min(0).default(0),
+  batting_avg: z.coerce.number().min(0).max(9999).default(0),
+  batting_sr: z.coerce.number().min(0).max(9999).default(0),
+  photo: z.string().nullable(),
+  cric_heroes_link: z.string().url().nullable().optional().or(z.literal("")),
 });
 type FormValues = z.infer<typeof schema>;
 
 type Player = {
   id: string;
-  first_name: string;
-  last_name: string;
-  display_name: string | null;
-  player_role: "batsman" | "bowler" | "all_rounder" | "wicketkeeper";
-  country: string | null;
-  cricinfo_url: string | null;
-  photo_url: string | null;
+  name: string;
+  role: "batter" | "bowler" | "batting_allrounder" | "bowling_allrounder" | "wicket_keeper";
+  batting_style: string | null;
+  bowling_style: string | null;
+  matches: number;
+  runs: number;
+  wickets: number;
+  batting_avg: number;
+  batting_sr: number;
+  photo: string | null;
+  cric_heroes_link: string | null;
 };
 
 interface PlayerFormDialogProps {
@@ -47,40 +55,36 @@ interface PlayerFormDialogProps {
 export function PlayerFormDialog({ trigger, player }: PlayerFormDialogProps) {
   const [open, setOpen] = useState(false);
   const qc = useQueryClient();
+  const defaults = (): FormValues => ({
+    name: player?.name ?? "",
+    role: player?.role ?? "batter",
+    batting_style: player?.batting_style ?? "",
+    bowling_style: player?.bowling_style ?? "",
+    matches: player?.matches ?? 0,
+    runs: player?.runs ?? 0,
+    wickets: player?.wickets ?? 0,
+    batting_avg: player?.batting_avg ?? 0,
+    batting_sr: player?.batting_sr ?? 0,
+    photo: player?.photo ?? null,
+    cric_heroes_link: player?.cric_heroes_link ?? "",
+  });
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: {
-      first_name: player?.first_name ?? "",
-      last_name: player?.last_name ?? "",
-      display_name: player?.display_name ?? "",
-      player_role: player?.player_role ?? "batsman",
-      country: player?.country ?? "",
-      cricinfo_url: player?.cricinfo_url ?? "",
-      photo_url: player?.photo_url ?? null,
-    },
+    defaultValues: defaults(),
   });
 
   useEffect(() => {
-    if (open) {
-      form.reset({
-        first_name: player?.first_name ?? "",
-        last_name: player?.last_name ?? "",
-        display_name: player?.display_name ?? "",
-        player_role: player?.player_role ?? "batsman",
-        country: player?.country ?? "",
-        cricinfo_url: player?.cricinfo_url ?? "",
-        photo_url: player?.photo_url ?? null,
-      });
-    }
+    if (open) form.reset(defaults());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, player, form]);
 
   const mutation = useMutation({
     mutationFn: async (values: FormValues) => {
       const payload = {
         ...values,
-        display_name: values.display_name?.trim() || null,
-        country: values.country?.trim() || null,
-        cricinfo_url: values.cricinfo_url?.trim() || null,
+        batting_style: values.batting_style?.trim() || null,
+        bowling_style: values.bowling_style?.trim() || null,
+        cric_heroes_link: values.cric_heroes_link?.trim() || null,
       };
       if (player) {
         const { error } = await supabase.from("players").update(payload).eq("id", player.id);
@@ -107,49 +111,60 @@ export function PlayerFormDialog({ trigger, player }: PlayerFormDialogProps) {
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit((v) => mutation.mutate(v))} className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
-              <FormField control={form.control} name="first_name" render={({ field }) => (
-                <FormItem><FormLabel>First name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-              )} />
-              <FormField control={form.control} name="last_name" render={({ field }) => (
-                <FormItem><FormLabel>Last name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-              )} />
-            </div>
-            <FormField control={form.control} name="display_name" render={({ field }) => (
-              <FormItem>
-                <FormLabel>Display name <span className="text-muted-foreground">(optional)</span></FormLabel>
-                <FormControl><Input placeholder="MS Dhoni" {...field} value={field.value ?? ""} /></FormControl>
-                <FormMessage />
-              </FormItem>
+            <FormField control={form.control} name="name" render={({ field }) => (
+              <FormItem><FormLabel>Name</FormLabel><FormControl><Input placeholder="MS Dhoni" {...field} /></FormControl><FormMessage /></FormItem>
             )} />
-            <div className="grid grid-cols-2 gap-3">
-              <FormField control={form.control} name="player_role" render={({ field }) => (
+            <FormField control={form.control} name="role" render={({ field }) => (
                 <FormItem>
                   <FormLabel>Role</FormLabel>
                   <Select value={field.value} onValueChange={field.onChange}>
                     <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
                     <SelectContent>
-                      <SelectItem value="batsman">Batsman</SelectItem>
+                      <SelectItem value="batter">Batter</SelectItem>
                       <SelectItem value="bowler">Bowler</SelectItem>
-                      <SelectItem value="all_rounder">All-rounder</SelectItem>
-                      <SelectItem value="wicketkeeper">Wicketkeeper</SelectItem>
+                      <SelectItem value="batting_allrounder">Batting Allrounder</SelectItem>
+                      <SelectItem value="bowling_allrounder">Bowling Allrounder</SelectItem>
+                      <SelectItem value="wicket_keeper">Wicket Keeper</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
                 </FormItem>
+            )} />
+            <div className="grid grid-cols-2 gap-3">
+              <FormField control={form.control} name="batting_style" render={({ field }) => (
+                <FormItem><FormLabel>Batting style</FormLabel><FormControl><Input placeholder="Right-hand bat" {...field} value={field.value ?? ""} /></FormControl><FormMessage /></FormItem>
               )} />
-              <FormField control={form.control} name="country" render={({ field }) => (
-                <FormItem><FormLabel>Country</FormLabel><FormControl><Input placeholder="India" {...field} value={field.value ?? ""} /></FormControl><FormMessage /></FormItem>
+              <FormField control={form.control} name="bowling_style" render={({ field }) => (
+                <FormItem><FormLabel>Bowling style</FormLabel><FormControl><Input placeholder="Right-arm offbreak" {...field} value={field.value ?? ""} /></FormControl><FormMessage /></FormItem>
               )} />
             </div>
-            <FormField control={form.control} name="cricinfo_url" render={({ field }) => (
+            <div className="grid grid-cols-3 gap-3">
+              <FormField control={form.control} name="matches" render={({ field }) => (
+                <FormItem><FormLabel>Matches</FormLabel><FormControl><Input type="number" min={0} {...field} /></FormControl><FormMessage /></FormItem>
+              )} />
+              <FormField control={form.control} name="runs" render={({ field }) => (
+                <FormItem><FormLabel>Runs</FormLabel><FormControl><Input type="number" min={0} {...field} /></FormControl><FormMessage /></FormItem>
+              )} />
+              <FormField control={form.control} name="wickets" render={({ field }) => (
+                <FormItem><FormLabel>Wickets</FormLabel><FormControl><Input type="number" min={0} {...field} /></FormControl><FormMessage /></FormItem>
+              )} />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <FormField control={form.control} name="batting_avg" render={({ field }) => (
+                <FormItem><FormLabel>Batting average</FormLabel><FormControl><Input type="number" step="0.01" min={0} {...field} /></FormControl><FormMessage /></FormItem>
+              )} />
+              <FormField control={form.control} name="batting_sr" render={({ field }) => (
+                <FormItem><FormLabel>Strike rate</FormLabel><FormControl><Input type="number" step="0.01" min={0} {...field} /></FormControl><FormMessage /></FormItem>
+              )} />
+            </div>
+            <FormField control={form.control} name="cric_heroes_link" render={({ field }) => (
               <FormItem>
-                <FormLabel>Cricinfo URL <span className="text-muted-foreground">(optional)</span></FormLabel>
+                <FormLabel>CricHeroes link <span className="text-muted-foreground">(optional)</span></FormLabel>
                 <FormControl><Input placeholder="https://…" {...field} value={field.value ?? ""} /></FormControl>
                 <FormMessage />
               </FormItem>
             )} />
-            <FormField control={form.control} name="photo_url" render={({ field }) => (
+            <FormField control={form.control} name="photo" render={({ field }) => (
               <FormItem>
                 <FormLabel>Photo</FormLabel>
                 <FormControl>
