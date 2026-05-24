@@ -134,6 +134,7 @@ function AuctionDetail() {
               <span className="flex items-center gap-1"><Calendar className="h-4 w-4" />{format(new Date(a.scheduled_at), "PPP p")}</span>
               <span className="flex items-center gap-1"><Coins className="h-4 w-4" />Budget {a.team_budget.toLocaleString()}</span>
               <span className="flex items-center gap-1"><Gavel className="h-4 w-4" />Baseline {a.baseline_price.toLocaleString()}</span>
+              <span className="flex items-center gap-1"><Users className="h-4 w-4" />Squad min {a.min_players_per_team} · max {a.max_players_per_team}</span>
             </div>
           </div>
           {isAdmin && a.status === "upcoming" && (
