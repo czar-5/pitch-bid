@@ -396,6 +396,7 @@ function StepReview({ state, teams, players }: { state: WizardState; teams: Team
       <Row label="Team budget" value={state.team_budget.toLocaleString()} />
       <Row label="Baseline" value={state.baseline_price.toLocaleString()} />
       <Row label="Round closure" value={`${state.round_closure_seconds}s`} />
+      <Row label="Squad size" value={`min ${state.min_players_per_team} · max ${state.max_players_per_team}`} />
       <Row label="Bid rules" value={`${state.bid_rules.length} tiers`} />
       <Row label="Teams" value={`${teamNames.length} · ${teamNames.slice(0, 4).join(", ")}${teamNames.length > 4 ? "…" : ""}`} />
       <Row label="Players" value={`${state.selectedPlayers.size} of ${players.length}`} />
