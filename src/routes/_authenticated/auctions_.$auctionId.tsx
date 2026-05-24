@@ -401,6 +401,30 @@ function LobbyRoom({
         )}
       </div>
 
+      {nextPlayerQ.data ? (
+        <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 flex items-center gap-4">
+          <div className="h-14 w-14 rounded-lg bg-muted overflow-hidden flex-shrink-1 flex items-center justify-center text-lg font-bold text-muted-foreground">
+            {nextPlayerQ.data.photo_url
+              ? <img src={nextPlayerQ.data.photo_url} alt="" className="h-full w-full object-cover" />
+              : (nextPlayerQ.data.first_name ?? "?")[0]}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-[10px] uppercase tracking-widest text-primary font-bold">Up next</p>
+            <p className="text-base font-bold truncate">
+              {nextPlayerQ.data.display_name ?? `${nextPlayerQ.data.first_name} ${nextPlayerQ.data.last_name}`}
+            </p>
+            <p className="text-xs text-muted-foreground capitalize">
+              {nextPlayerQ.data.player_role?.replace("_", " ")}{nextPlayerQ.data.country ? ` · ${nextPlayerQ.data.country}` : ""}
+            </p>
+          </div>
+          <ChevronsRight className="h-5 w-5 text-primary flex-shrink-0" />
+        </div>
+      ) : (
+        <div className="rounded-lg border border-border bg-muted/40 p-4 text-center text-sm text-muted-foreground">
+          No upcoming players — auction is ready to complete.
+        </div>
+      )}
+
       <TeamsTabs auctionId={auctionId} teams={teams} joinedTeamIds={joinedTeamIds} />
 
       {isAdmin && (
