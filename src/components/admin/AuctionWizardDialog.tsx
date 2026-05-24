@@ -260,6 +260,13 @@ function StepMoney({ state, setState }: { state: WizardState; setState: Setter }
         <div><Label>Baseline price</Label><Input type="number" className={NO_SPIN} value={state.baseline_price} onChange={(e) => setState((s) => ({ ...s, baseline_price: Number(e.target.value) }))} /></div>
         <div><Label>Round closure (sec)</Label><Input type="number" className={NO_SPIN} value={state.round_closure_seconds} onChange={(e) => setState((s) => ({ ...s, round_closure_seconds: Number(e.target.value) }))} /></div>
       </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div><Label>Min players / team</Label><Input type="number" className={NO_SPIN} value={state.min_players_per_team} onChange={(e) => setState((s) => ({ ...s, min_players_per_team: Number(e.target.value) }))} /></div>
+        <div><Label>Max players / team</Label><Input type="number" className={NO_SPIN} value={state.max_players_per_team} onChange={(e) => setState((s) => ({ ...s, max_players_per_team: Number(e.target.value) }))} /></div>
+      </div>
+      {state.min_players_per_team > state.max_players_per_team && (
+        <p className="text-xs text-destructive">Min players cannot exceed max players.</p>
+      )}
       <div>
         <Label>Bid increment</Label>
         <div className="mt-2 space-y-2">
