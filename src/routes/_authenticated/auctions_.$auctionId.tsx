@@ -516,6 +516,21 @@ function LiveRoom({
   const expired = remaining != null && remaining <= 0;
   const bigTimer = remaining != null && remaining <= 5;
 
+  const selectedAt = selectedTeam ? myTeams.find((t) => t.team?.id === selectedTeam) : null;
+  const minPlayers = (auction.min_players_per_team as number) ?? 0;
+  const maxPlayers = (auction.max_players_per_team as number) ?? Infinity;
+  const baseline = auction.baseline_price as number;
+  const atMaxCap = !!selectedAt && selectedAt.players_bought >= maxPlayers;
+  const nextN = selectedAt ? selectedAt.players_bought + 1 : 1;
+  const reserveNeeded = Math.max(0, minPlayers - nextN) * baseline;
+  const wouldBreakReserve = !!selectedAt && (selectedAt.budget_remaining - nextAmount) < reserveNeeded;
+  const bidBlocked = atMaxCap || wouldBreakReserve;
+  const blockedReason = atMaxCap
+    ? `Squad full (${maxPlayers} players)`
+    : wouldBreakReserve
+      ? `Reserve ${reserveNeeded.toLocaleString()} for ${Math.max(0, minPlayers - nextN)} more`
+      : null;
+
   return (
     <div className="space-y-4">
       <div className="rounded-xl border border-primary/40 bg-gradient-to-br from-primary/15 to-card p-5">
@@ -584,10 +599,17 @@ function LiveRoom({
           <Button
             className="w-full h-14 text-lg font-bold"
             onClick={() => placeBid.mutate()}
-            disabled={placeBid.isPending || !selectedTeam || expired || (leadingTeam?.team?.id === selectedTeam)}
+            disabled={placeBid.isPending || !selectedTeam || expired || (leadingTeam?.team?.id === selectedTeam) || bidBlocked}
+            title={blockedReason ?? undefined}
           >
             <Gavel className="h-4 w-4 mr-2" />
-            {expired ? "Round closed" : leadingTeam?.team?.id === selectedTeam ? "You're leading" : `Bid ${nextAmount.toLocaleString()}`}
+            {expired
+              ? "Round closed"
+              : leadingTeam?.team?.id === selectedTeam
+                ? "You're leading"
+                : blockedReason
+                  ? blockedReason
+                  : `Bid ${nextAmount.toLocaleString()}`}
           </Button>
         </div>
       )}
