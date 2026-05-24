@@ -286,14 +286,26 @@ function AuctionDetail() {
 type AuctionRow = NonNullable<ReturnType<typeof useQuery<{ id: string }>>["data"]>;
 
 function LobbyRoom({
-  auctionId, teams, isAdmin, userId,
+  auctionId, auction, teams, isAdmin, userId,
 }: {
   auctionId: string;
+  auction: any;
   teams: any[];
   isAdmin: boolean;
   userId: string | null;
 }) {
   const qc = useQueryClient();
+
+  const [roundSecs, setRoundSecs] = useState<number>(auction.round_closure_seconds);
+  useEffect(() => { setRoundSecs(auction.round_closure_seconds); }, [auction.round_closure_seconds]);
+  const saveRoundSecs = useMutation({
+    mutationFn: async (v: number) => {
+      const { error } = await supabase.from("auctions").update({ round_closure_seconds: v }).eq("id", auctionId);
+      if (error) throw error;
+    },
+    onSuccess: () => { toast.success("Round timer updated"); qc.invalidateQueries({ queryKey: ["auction", auctionId] }); },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   // which teams does this user manage?
   const membershipsQ = useQuery({
@@ -381,6 +393,30 @@ function LobbyRoom({
       </div>
 
       <TeamsTabs auctionId={auctionId} teams={teams} joinedTeamIds={joinedTeamIds} />
+
+      {isAdmin && (
+        <div className="rounded-lg border border-border bg-background/60 p-3 flex items-center gap-3">
+          <Timer className="h-4 w-4 text-muted-foreground" />
+          <label className="text-xs font-medium text-muted-foreground">Round timer</label>
+          <input
+            type="number"
+            min={3}
+            max={300}
+            value={roundSecs}
+            onChange={(e) => setRoundSecs(Math.max(3, Math.min(300, parseInt(e.target.value) || 0)))}
+            className="w-20 rounded border border-border bg-background px-2 py-1 text-sm"
+          />
+          <span className="text-xs text-muted-foreground">seconds</span>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={saveRoundSecs.isPending || roundSecs === auction.round_closure_seconds}
+            onClick={() => saveRoundSecs.mutate(roundSecs)}
+          >
+            Save
+          </Button>
+        </div>
+      )}
 
       {isAdmin && (
         <div className="space-y-2">
