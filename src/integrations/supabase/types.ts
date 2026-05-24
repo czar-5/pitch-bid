@@ -231,37 +231,49 @@ export type Database = {
       }
       players: {
         Row: {
-          country: string | null
+          batting_avg: number
+          batting_sr: number
+          batting_style: string | null
+          bowling_style: string | null
           created_at: string
-          cricinfo_url: string | null
-          display_name: string | null
-          first_name: string
+          cric_heroes_link: string | null
           id: string
-          last_name: string
-          photo_url: string | null
-          player_role: Database["public"]["Enums"]["player_role"]
+          matches: number
+          name: string
+          photo: string | null
+          role: Database["public"]["Enums"]["player_role"]
+          runs: number
+          wickets: number
         }
         Insert: {
-          country?: string | null
+          batting_avg?: number
+          batting_sr?: number
+          batting_style?: string | null
+          bowling_style?: string | null
           created_at?: string
-          cricinfo_url?: string | null
-          display_name?: string | null
-          first_name: string
+          cric_heroes_link?: string | null
           id?: string
-          last_name: string
-          photo_url?: string | null
-          player_role?: Database["public"]["Enums"]["player_role"]
+          matches?: number
+          name: string
+          photo?: string | null
+          role?: Database["public"]["Enums"]["player_role"]
+          runs?: number
+          wickets?: number
         }
         Update: {
-          country?: string | null
+          batting_avg?: number
+          batting_sr?: number
+          batting_style?: string | null
+          bowling_style?: string | null
           created_at?: string
-          cricinfo_url?: string | null
-          display_name?: string | null
-          first_name?: string
+          cric_heroes_link?: string | null
           id?: string
-          last_name?: string
-          photo_url?: string | null
-          player_role?: Database["public"]["Enums"]["player_role"]
+          matches?: number
+          name?: string
+          photo?: string | null
+          role?: Database["public"]["Enums"]["player_role"]
+          runs?: number
+          wickets?: number
         }
         Relationships: []
       }
@@ -373,13 +385,12 @@ export type Database = {
       get_next_player: {
         Args: { _auction_id: string }
         Returns: {
-          country: string
-          display_name: string
-          first_name: string
-          last_name: string
-          photo_url: string
+          batting_style: string
+          bowling_style: string
+          name: string
+          photo: string
           player_id: string
-          player_role: string
+          role: string
         }[]
       }
       go_live_auction: { Args: { _auction_id: string }; Returns: undefined }
@@ -414,7 +425,12 @@ export type Database = {
         | "completed"
         | "archived"
       membership_role: "manager" | "co_manager"
-      player_role: "batsman" | "bowler" | "all_rounder" | "wicketkeeper"
+      player_role:
+        | "batter"
+        | "bowler"
+        | "batting_allrounder"
+        | "bowling_allrounder"
+        | "wicket_keeper"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -553,7 +569,13 @@ export const Constants = {
         "archived",
       ],
       membership_role: ["manager", "co_manager"],
-      player_role: ["batsman", "bowler", "all_rounder", "wicketkeeper"],
+      player_role: [
+        "batter",
+        "bowler",
+        "batting_allrounder",
+        "bowling_allrounder",
+        "wicket_keeper",
+      ],
     },
   },
 } as const
