@@ -49,7 +49,7 @@ function AuctionDetail() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("auction_players")
-        .select("id,status,sold_price,sold_team_id,round_ends_at,paused_remaining_seconds,player:players(id,name,role,photo,batting_style,bowling_style,matches,runs,wickets,batting_avg,batting_sr,bowling_economy)")
+        .select("id,status,sold_price,sold_team_id,is_captain,is_icon,round_ends_at,paused_remaining_seconds,player:players(id,name,role,photo,batting_style,bowling_style,matches,runs,wickets,batting_avg,batting_sr,bowling_economy)")
         .eq("auction_id", auctionId)
         .order("name", { foreignTable: "players", ascending: true });
       if (error) throw error;
@@ -236,7 +236,13 @@ function AuctionDetail() {
                   <p className="font-medium truncate">{ap.player?.name}</p>
                   <p className="text-xs text-muted-foreground capitalize">{ap.player?.role?.replace(/_/g, " ")}</p>
                 </div>
-                {ap.sold_price != null && <span className="text-xs text-muted-foreground">{ap.sold_price.toLocaleString()}</span>}
+                {ap.is_captain ? (
+                  <span className="text-xs font-semibold text-primary">Captain</span>
+                ) : ap.is_icon ? (
+                  <span className="text-xs font-semibold text-primary">Icon Player</span>
+                ) : ap.sold_price != null ? (
+                  <span className="text-xs text-muted-foreground">{ap.sold_price.toLocaleString()}</span>
+                ) : null}
                 {team && (
                   <div
                     className="h-7 w-7 rounded bg-muted overflow-hidden flex items-center justify-center text-[10px] font-bold flex-shrink-0"
@@ -921,7 +927,7 @@ function TeamsTabs({
     queryFn: async () => {
       const { data, error } = await supabase
         .from("auction_players")
-        .select("sold_team_id,sold_price,player:players(name,role,photo)")
+        .select("sold_team_id,sold_price,is_captain,is_icon,player:players(name,role,photo)")
         .eq("auction_id", auctionId)
         .eq("status", "sold");
       if (error) throw error;
@@ -1015,7 +1021,13 @@ function TeamsTabs({
                     <p className="text-xs font-medium truncate">{name}</p>
                     <p className="text-[10px] text-muted-foreground capitalize">{p?.role?.replace(/_/g, " ")}</p>
                   </div>
-                  <span className="text-xs font-semibold tabular-nums">{(r.sold_price ?? 0).toLocaleString()}</span>
+                  {r.is_captain ? (
+                    <span className="text-[10px] font-semibold text-primary uppercase tracking-wide">Captain</span>
+                  ) : r.is_icon ? (
+                    <span className="text-[10px] font-semibold text-primary uppercase tracking-wide">Icon</span>
+                  ) : (
+                    <span className="text-xs font-semibold tabular-nums">{(r.sold_price ?? 0).toLocaleString()}</span>
+                  )}
                 </li>
               );
             })}
