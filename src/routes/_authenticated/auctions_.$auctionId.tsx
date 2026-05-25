@@ -708,22 +708,7 @@ function LiveRoom({
                   {p?.bowling_style ? <> · {p.bowling_style}</> : null}
                 </p>
               </div>
-              {/* Timer slot — fixed size so the big-timer state doesn't reflow layout */}
-              <div className="relative w-20 h-16 flex-shrink-0">
-                {remaining != null && (
-                  <div
-                    className={`absolute right-0 top-0 font-mono font-bold tabular-nums flex items-center justify-end gap-1 transition-all duration-200 origin-top-right ${
-                      bigTimer
-                        ? (expired ? "text-muted-foreground" : "text-destructive animate-pulse")
-                        : "text-foreground"
-                    }`}
-                    style={bigTimer ? { fontSize: "5rem", lineHeight: 1 } : { fontSize: "1.25rem", lineHeight: 1.2 }}
-                  >
-                    {!bigTimer && (isPaused ? <Pause className="h-4 w-4" /> : <Timer className="h-4 w-4" />)}
-                    <span>{remaining}s</span>
-                  </div>
-                )}
-              </div>
+              {/* Timer is rendered next to the bid button below so all decision info is in one place */}
             </div>
           </div>
         </div>
@@ -772,23 +757,39 @@ function LiveRoom({
                 </button>
               ))}
             </div>
-            <Button
-              className="w-full h-12 text-base font-bold"
-              onClick={() => placeBid.mutate()}
-              disabled={placeBid.isPending || !selectedTeam || expired || isPaused || (leadingTeam?.team?.id === selectedTeam) || bidBlocked}
-              title={blockedReason ?? undefined}
-            >
-              <Gavel className="h-4 w-4 mr-2" />
-              {isPaused
-                ? "Paused"
-                : expired
-                  ? "Round closed"
-                  : leadingTeam?.team?.id === selectedTeam
-                  ? "You're leading"
-                  : blockedReason
-                    ? blockedReason
-                    : `Bid ${nextAmount.toLocaleString()}`}
-            </Button>
+            <div className="flex items-stretch gap-2">
+              <Button
+                className="flex-1 h-14 text-base font-bold"
+                onClick={() => placeBid.mutate()}
+                disabled={placeBid.isPending || !selectedTeam || expired || isPaused || (leadingTeam?.team?.id === selectedTeam) || bidBlocked}
+                title={blockedReason ?? undefined}
+              >
+                <Gavel className="h-4 w-4 mr-2" />
+                {isPaused
+                  ? "Paused"
+                  : expired
+                    ? "Round closed"
+                    : leadingTeam?.team?.id === selectedTeam
+                    ? "You're leading"
+                    : blockedReason
+                      ? blockedReason
+                      : `Bid ${nextAmount.toLocaleString()}`}
+              </Button>
+              {remaining != null && (
+                <div
+                  className={`h-14 min-w-16 px-3 rounded-md border flex items-center justify-center gap-1 font-mono font-bold tabular-nums ${
+                    bigTimer
+                      ? (expired ? "border-border bg-muted text-muted-foreground" : "border-destructive bg-destructive/15 text-destructive animate-pulse")
+                      : "border-border bg-background text-foreground"
+                  }`}
+                  style={{ fontSize: bigTimer ? "2rem" : "1.25rem", lineHeight: 1 }}
+                  aria-label={`${remaining} seconds remaining`}
+                >
+                  {!bigTimer && (isPaused ? <Pause className="h-4 w-4" /> : <Timer className="h-4 w-4" />)}
+                  <span>{remaining}s</span>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>
