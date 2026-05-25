@@ -437,7 +437,38 @@ function LobbyRoom({
         </div>
       )}
 
-      <TeamsTabs auctionId={auctionId} teams={teams} joinedTeamIds={joinedTeamIds} />
+      <div className="rounded-lg border border-border bg-background/60 p-3">
+        <p className="mb-2 text-[10px] uppercase tracking-widest text-muted-foreground font-bold">
+          Team managers joined — {joinedCount} / {totalTeams}
+        </p>
+        <div className="flex flex-wrap gap-2">
+          {teams.map((at) => {
+            const joined = joinedTeamIds.has(at.team?.id);
+            return (
+              <div
+                key={at.id}
+                className={`flex items-center gap-2 rounded-full border px-2 py-1 text-xs ${
+                  joined ? "border-primary/40 bg-primary/10" : "border-border bg-muted/50"
+                }`}
+                title={joined ? `${at.team?.name} — joined` : `${at.team?.name} — waiting`}
+              >
+                <div
+                  className="h-5 w-5 rounded bg-muted flex items-center justify-center text-[9px] font-bold overflow-hidden flex-shrink-0"
+                  style={{ background: at.team?.primary_color ?? undefined }}
+                >
+                  {at.team?.logo_url
+                    ? <img src={at.team.logo_url} alt="" className="h-full w-full object-cover" />
+                    : (at.team?.name as string)?.slice(0, 2).toUpperCase()}
+                </div>
+                <span className="max-w-[10rem] truncate font-medium">{at.team?.name}</span>
+                {joined
+                  ? <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
+                  : <Circle className="h-3.5 w-3.5 text-muted-foreground/40" />}
+              </div>
+            );
+          })}
+        </div>
+      </div>
 
       {isAdmin && (
         <div className="rounded-lg border border-border bg-background/60 p-3 flex items-center gap-3">
@@ -872,11 +903,10 @@ function IntermissionRoom({
 }
 
 function TeamsTabs({
-  auctionId, teams, joinedTeamIds,
+  auctionId, teams,
 }: {
   auctionId: string;
   teams: any[];
-  joinedTeamIds?: Set<string>;
 }) {
   const [activeId, setActiveId] = useState<string | null>(teams[0]?.team?.id ?? null);
   useEffect(() => {
@@ -917,7 +947,6 @@ function TeamsTabs({
       <div className="flex items-end gap-1 overflow-x-auto -mb-px pb-0 scrollbar-thin">
         {teams.map((at) => {
           const isActive = at.team?.id === activeId;
-          const joined = joinedTeamIds?.has(at.team?.id);
           return (
             <button
               key={at.id}
@@ -938,11 +967,6 @@ function TeamsTabs({
                   : (at.team?.name as string)?.slice(0, 2).toUpperCase()}
               </div>
               <span className="max-w-[10rem] truncate">{at.team?.name}</span>
-              {joinedTeamIds && (
-                joined
-                  ? <CheckCircle2 className="h-3.5 w-3.5 text-primary" />
-                  : <Circle className="h-3.5 w-3.5 text-muted-foreground/40" />
-              )}
             </button>
           );
         })}

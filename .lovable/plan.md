@@ -1,25 +1,19 @@
-## Bug
+## Lobby: replace teams tab strip with a join-status icon row
 
-In the `place_bid()` Postgres function, the WHERE clause that picks the active bid slab can never match a rule whose `max` is JSON `null` (the top/unbounded slab). When the high bid is in that range, the rule lookup returns no row, `_inc` is NULL, and the function falls back to the hard-coded `_inc := 100`. The frontend's `nextAmount` uses correct JS null-checks, so the UI shows the configured increment (e.g. +500) but the server inserts a bid using +100. This is the intermittent failure you've been seeing — it only occurs once bidding crosses into the top slab.
+In the auction lobby, the `<TeamsTabs joinedTeamIds={...}>` browser-tab block doesn't add real info — it duplicates the "Teams" section below. Replace it in the lobby only with a compact horizontal row of team logos, each with a green tick when that team's manager has joined.
 
-Root cause: `(r->'max') IS NULL` is false for a JSONB `null` value, and `(r->>'max')` returns SQL NULL (not the text `'null'`) for a JSON null, so all three OR branches fail.
+### Changes (single file: `src/routes/_authenticated/auctions_.$auctionId.tsx`)
 
-## Fix
+1. **LobbyRoom** — remove `<TeamsTabs ... joinedTeamIds={...} />` and render a new inline status row:
+   - Header: "Team managers joined — {joinedCount} / {totalTeams}"
+   - Below: flex-wrap row of team chips, each showing the team logo (or initials with `primary_color` background), team name, and a join indicator:
+     - joined → `CheckCircle2` in `text-primary`
+     - not joined → `Circle` in `text-muted-foreground/40`
+   - Chips are presentational (no click, no roster panel).
 
-One migration that replaces `public.place_bid(uuid, uuid)` with the same body, changing only the slab-lookup WHERE clause to correctly treat a JSON-null / missing `max` as "no upper bound":
+2. **TeamsTabs component** — remove the now-unused `joinedTeamIds` prop and the join-indicator code inside its tab buttons. The lower "Teams" section keeps using TeamsTabs for the roster browsing UI (unchanged behavior).
 
-```sql
-AND COALESCE((r->>'max')::bigint, 9223372036854775807) > _high
-```
+3. No backend / RPC / presence changes — presence tracking stays as is, only the rendering changes.
 
-Everything else in `place_bid()` (locks, status checks, budget/reserve checks, insert into `bids`, round timer extension) stays identical.
-
-## Verification
-
-- Re-run a manual auction sequence past the top-slab boundary and confirm the inserted `bids.amount` matches the UI's "Next bid" (e.g. 5000 → 5500, not 5100).
-- No frontend changes are needed; `nextAmount` in `LiveRoom` and `BidSlabLadder` are already correct.
-
-## Out of scope
-
-- No changes to slab data model, UI, or admin wizard.
-- No change to the `_inc := 100` safety fallback itself — it stays as a last-resort guard for genuinely malformed `bid_rules_json`.
+### Out of scope
+No styling/theming overhaul, no changes to LiveRoom, IntermissionRoom, or the lower Teams roster section.
