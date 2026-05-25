@@ -21,6 +21,7 @@ export type Database = {
           created_at: string
           icon_team_id: string | null
           id: string
+          is_captain: boolean
           is_icon: boolean
           paused_remaining_seconds: number | null
           player_id: string
@@ -35,6 +36,7 @@ export type Database = {
           created_at?: string
           icon_team_id?: string | null
           id?: string
+          is_captain?: boolean
           is_icon?: boolean
           paused_remaining_seconds?: number | null
           player_id: string
@@ -49,6 +51,7 @@ export type Database = {
           created_at?: string
           icon_team_id?: string | null
           id?: string
+          is_captain?: boolean
           is_icon?: boolean
           paused_remaining_seconds?: number | null
           player_id?: string
