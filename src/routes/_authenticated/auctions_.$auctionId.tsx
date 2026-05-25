@@ -731,7 +731,7 @@ function LiveRoom({
 
       {/* Sticky bid panel — pinned to bottom of viewport so users never have to scroll for bid actions */}
       <div className="sticky bottom-2 z-30 space-y-2">
-        <div className={`rounded-xl border border-primary/40 bg-card/95 backdrop-blur shadow-lg p-3 grid gap-3 ${myTeams.length > 0 ? "grid-cols-1" : "grid-cols-2"}`}>
+        <div className={`rounded-xl border border-primary/40 bg-card/95 backdrop-blur shadow-lg p-3 grid gap-3 ${myTeams.length === 1 ? "grid-cols-2" : "grid-cols-1"}`}>
           <div className="rounded-lg bg-background/60 p-2 min-w-0">
             <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Current bid</p>
             <p className="text-base sm:text-xl font-extrabold break-words leading-tight line-clamp-2">{highBid ? highBid.team?.name : "No bids yet"}</p>
