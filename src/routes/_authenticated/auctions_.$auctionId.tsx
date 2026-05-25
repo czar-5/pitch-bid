@@ -886,7 +886,11 @@ function IntermissionRoom({
     <div className="rounded-xl border border-primary/40 bg-gradient-to-br from-primary/15 to-card p-5 space-y-5">
       <div className="text-center">
         <p className="text-[10px] uppercase tracking-widest text-primary font-bold">Next player</p>
-        {!p && <p className="mt-2 text-muted-foreground">No more players queued.</p>}
+        {!p && (
+          <p className="mt-2 text-muted-foreground">
+            No queued players. Click below to start a new round with any unsold / skipped players.
+          </p>
+        )}
       </div>
 
       {p && (
@@ -926,8 +930,9 @@ function IntermissionRoom({
 
       {isAdmin && (
         <div className="text-center">
-          <Button size="lg" onClick={onNext} disabled={nextPending || !p}>
-            <ChevronsRight className="h-4 w-4 mr-1" /> Bring up next player
+          <Button size="lg" onClick={onNext} disabled={nextPending}>
+            <ChevronsRight className="h-4 w-4 mr-1" />
+            {p ? "Bring up next player" : "Start next round"}
           </Button>
         </div>
       )}
