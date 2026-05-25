@@ -44,7 +44,7 @@ function PlayersPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("players")
-        .select("id,name,role,batting_style,bowling_style,matches,runs,wickets,batting_avg,batting_sr,photo,cric_heroes_link")
+        .select("id,name,role,batting_style,bowling_style,matches,runs,wickets,batting_avg,batting_sr,bowling_economy,photo,cric_heroes_link")
         .order("name");
       if (error) throw error;
       return data;
