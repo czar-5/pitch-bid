@@ -49,7 +49,7 @@ function AuctionDetail() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("auction_players")
-        .select("id,status,sold_price,sold_team_id,round_ends_at,paused_remaining_seconds,player:players(id,name,role,photo,batting_style,bowling_style,matches,runs,wickets,batting_avg,batting_sr)")
+        .select("id,status,sold_price,sold_team_id,round_ends_at,paused_remaining_seconds,player:players(id,name,role,photo,batting_style,bowling_style,matches,runs,wickets,batting_avg,batting_sr,bowling_economy)")
         .eq("auction_id", auctionId)
         .order("name", { foreignTable: "players", ascending: true });
       if (error) throw error;
@@ -421,6 +421,7 @@ function LobbyRoom({
                   { label: "Wickets", value: nextPlayerQ.data.wickets ?? 0 },
                   { label: "Average", value: nextPlayerQ.data.batting_avg ?? 0 },
                   { label: "Strike Rate", value: nextPlayerQ.data.batting_sr ?? 0 },
+                  { label: "Economy", value: nextPlayerQ.data.bowling_economy ?? 0 },
                 ].map((s) => (
                   <div key={s.label} className="rounded-lg bg-background/60 p-2 text-center">
                     <p className="text-[10px] uppercase tracking-widest text-muted-foreground">{s.label}</p>
@@ -715,6 +716,7 @@ function LiveRoom({
                 { label: "Wickets", value: p?.wickets ?? 0 },
                 { label: "Average", value: p?.batting_avg ?? 0 },
                 { label: "Strike Rate", value: p?.batting_sr ?? 0 },
+                { label: "Economy", value: p?.bowling_economy ?? 0 },
               ].map((s) => (
                 <div key={s.label} className="rounded-lg bg-background/60 p-2 text-center">
                   <p className="text-[10px] uppercase tracking-widest text-muted-foreground">{s.label}</p>
