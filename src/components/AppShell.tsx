@@ -13,6 +13,10 @@ const nav = [
 export function AppShell() {
   const { user, isAdmin, signOut, isAuthenticated } = useAuth();
   const router = useRouter();
+  const pathname = router.state.location.pathname;
+  // Hide bottom nav on auction detail pages (lobby + live) so the sticky bid
+  // panel isn't obscured.
+  const hideBottomNav = /^\/auctions\/[^/]+\/?$/.test(pathname);
   const initial = (user?.user_metadata?.name || user?.user_metadata?.full_name || user?.email || "G")
     .trim()
     .charAt(0)
@@ -72,11 +76,12 @@ export function AppShell() {
         </div>
       </header>
 
-      <main className="flex-1 mx-auto w-full max-w-6xl px-4 py-6 pb-24 md:pb-6">
+      <main className={`flex-1 mx-auto w-full max-w-6xl px-4 py-6 ${hideBottomNav ? "pb-6" : "pb-24 md:pb-6"}`}>
         <Outlet />
       </main>
 
       {/* Mobile bottom nav */}
+      {!hideBottomNav && (
       <nav className="fixed bottom-0 left-0 right-0 z-30 border-t border-border bg-card/95 backdrop-blur md:hidden">
         <div className="grid grid-cols-3">
           {nav.map((n) => {
@@ -95,6 +100,7 @@ export function AppShell() {
           })}
         </div>
       </nav>
+      )}
 
       <Toaster />
     </div>
