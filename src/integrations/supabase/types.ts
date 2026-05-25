@@ -400,6 +400,7 @@ export type Database = {
           batting_avg: number
           batting_sr: number
           batting_style: string
+          bowling_economy: number
           bowling_style: string
           matches: number
           name: string
