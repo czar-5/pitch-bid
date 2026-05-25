@@ -45,8 +45,8 @@ type Row = {
   error: string | null;
 };
 
-const TEMPLATE = `name,role,batting_style,bowling_style,matches,runs,wickets,batting_avg,batting_sr,bowling_economy,photo_filename,cric_heroes_link
-MS Dhoni,wicket_keeper,Right-hand bat,Right-arm medium,350,10773,1,38.09,87.56,0,dhoni.jpg,https://cricheroes.com/player/123
+const TEMPLATE = `name,role,batting_style,bowling_style,matches,runs,wickets,bowling_economy,batting_avg,batting_sr,photo_filename,cric_heroes_link
+MS Dhoni,wicket_keeper,Right-hand bat,Right-arm medium,350,10773,1,0,38.09,87.56,dhoni.jpg,https://cricheroes.com/player/123
 `;
 
 function parseNumber(v: string | undefined): number {
@@ -199,7 +199,7 @@ function BulkImportPage() {
           </Button>
         </div>
         <p className="text-xs text-muted-foreground">
-          Required headers: <code>name, role, batting_style, bowling_style, matches, runs, wickets, batting_avg, batting_sr, bowling_economy, photo_filename, cric_heroes_link</code>.
+          Required headers: <code>name, role, batting_style, bowling_style, matches, runs, wickets, bowling_economy, batting_avg, batting_sr, photo_filename, cric_heroes_link</code>.
           Roles accepted: batter, bowler, batting_allrounder, bowling_allrounder, wicket_keeper.
         </p>
       </div>

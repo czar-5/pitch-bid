@@ -153,16 +153,16 @@ export function PlayerFormDialog({ trigger, player }: PlayerFormDialogProps) {
               )} />
             </div>
             <div className="grid grid-cols-2 gap-3">
+              <FormField control={form.control} name="bowling_economy" render={({ field }) => (
+                <FormItem><FormLabel>Bowling economy</FormLabel><FormControl><Input type="number" step="0.01" min={0} {...field} /></FormControl><FormMessage /></FormItem>
+              )} />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
               <FormField control={form.control} name="batting_avg" render={({ field }) => (
                 <FormItem><FormLabel>Batting average</FormLabel><FormControl><Input type="number" step="0.01" min={0} {...field} /></FormControl><FormMessage /></FormItem>
               )} />
               <FormField control={form.control} name="batting_sr" render={({ field }) => (
                 <FormItem><FormLabel>Strike rate</FormLabel><FormControl><Input type="number" step="0.01" min={0} {...field} /></FormControl><FormMessage /></FormItem>
-              )} />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <FormField control={form.control} name="bowling_economy" render={({ field }) => (
-                <FormItem><FormLabel>Bowling economy</FormLabel><FormControl><Input type="number" step="0.01" min={0} {...field} /></FormControl><FormMessage /></FormItem>
               )} />
             </div>
             <FormField control={form.control} name="cric_heroes_link" render={({ field }) => (
