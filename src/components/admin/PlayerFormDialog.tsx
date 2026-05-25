@@ -27,6 +27,7 @@ const schema = z.object({
   wickets: z.coerce.number().int().min(0),
   batting_avg: z.coerce.number().min(0).max(9999),
   batting_sr: z.coerce.number().min(0).max(9999),
+  bowling_economy: z.coerce.number().min(0).max(9999),
   photo: z.string().nullable(),
   cric_heroes_link: z.string().url().nullable().optional().or(z.literal("")),
 });
@@ -43,6 +44,7 @@ type Player = {
   wickets: number;
   batting_avg: number;
   batting_sr: number;
+  bowling_economy: number;
   photo: string | null;
   cric_heroes_link: string | null;
 };
@@ -65,6 +67,7 @@ export function PlayerFormDialog({ trigger, player }: PlayerFormDialogProps) {
     wickets: player?.wickets ?? 0,
     batting_avg: player?.batting_avg ?? 0,
     batting_sr: player?.batting_sr ?? 0,
+    bowling_economy: player?.bowling_economy ?? 0,
     photo: player?.photo ?? null,
     cric_heroes_link: player?.cric_heroes_link ?? "",
   });
@@ -155,6 +158,11 @@ export function PlayerFormDialog({ trigger, player }: PlayerFormDialogProps) {
               )} />
               <FormField control={form.control} name="batting_sr" render={({ field }) => (
                 <FormItem><FormLabel>Strike rate</FormLabel><FormControl><Input type="number" step="0.01" min={0} {...field} /></FormControl><FormMessage /></FormItem>
+              )} />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <FormField control={form.control} name="bowling_economy" render={({ field }) => (
+                <FormItem><FormLabel>Bowling economy</FormLabel><FormControl><Input type="number" step="0.01" min={0} {...field} /></FormControl><FormMessage /></FormItem>
               )} />
             </div>
             <FormField control={form.control} name="cric_heroes_link" render={({ field }) => (
