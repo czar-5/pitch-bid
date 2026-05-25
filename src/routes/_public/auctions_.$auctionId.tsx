@@ -436,10 +436,10 @@ function LobbyRoom({
             {[
               { label: "Matches", value: nextPlayerQ.data.matches ?? 0 },
               { label: "Runs", value: nextPlayerQ.data.runs ?? 0 },
-              { label: "Average", value: nextPlayerQ.data.batting_avg ?? 0 },
-              { label: "Strike Rate", value: nextPlayerQ.data.batting_sr ?? 0 },
+              { label: "Average", value: (nextPlayerQ.data.batting_avg ?? 0).toFixed(0) },
+              { label: "Strike Rate", value: (nextPlayerQ.data.batting_sr ?? 0).toFixed(0) },
               { label: "Wickets", value: nextPlayerQ.data.wickets ?? 0 },
-              { label: "Economy", value: nextPlayerQ.data.bowling_economy ?? 0 },
+              { label: "Economy", value: (nextPlayerQ.data.bowling_economy ?? 1).toFixed(1) },
             ].map((s) => (
               <div key={s.label} className="rounded-lg bg-background/60 p-2 text-center">
                 <p className="text-[10px] uppercase tracking-widest text-muted-foreground">{s.label}</p>
@@ -716,10 +716,10 @@ function LiveRoom({
           {[
             { label: "Matches", value: p?.matches ?? 0 },
             { label: "Runs", value: p?.runs ?? 0 },
-            { label: "Average", value: p?.batting_avg ?? 0 },
-            { label: "Strike Rate", value: p?.batting_sr ?? 0 },
+            { label: "Average", value: (p?.batting_avg ?? 0).toFixed(0) },
+            { label: "Strike Rate", value: (p?.batting_sr ?? 0).toFixed(0) },
             { label: "Wickets", value: p?.wickets ?? 0 },
-            { label: "Economy", value: p?.bowling_economy ?? 0 },
+            { label: "Economy", value: (p?.bowling_economy ?? 1).toFixed(1) },
           ].map((s) => (
             <div key={s.label} className="rounded-lg bg-background/60 p-2 text-center">
               <p className="text-[10px] uppercase tracking-widest text-muted-foreground">{s.label}</p>
@@ -914,10 +914,10 @@ function IntermissionRoom({
             {[
               { label: "Matches", value: p.matches ?? 0 },
               { label: "Runs", value: p.runs ?? 0 },
-              { label: "Average", value: p.batting_avg ?? 0 },
-              { label: "Strike Rate", value: p.batting_sr ?? 0 },
+              { label: "Average", value: (p.batting_avg ?? 0).toFixed(0) },
+              { label: "Strike Rate", value: (p.batting_sr ?? 0).toFixed(0) },
               { label: "Wickets", value: p.wickets ?? 0 },
-              { label: "Economy", value: p.bowling_economy ?? 0 },
+              { label: "Economy", value: (p.bowling_economy ?? 1).toFixed(1) },
             ].map((s) => (
               <div key={s.label} className="rounded-lg bg-background/60 p-2 text-center">
                 <p className="text-[10px] uppercase tracking-widest text-muted-foreground">{s.label}</p>
