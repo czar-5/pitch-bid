@@ -196,7 +196,7 @@ export function AuctionWizardDialog({ trigger, auctionId }: { trigger: React.Rea
         if (cap && state.selectedPlayers.has(cap) && !assignedPlayerIds.has(cap)) {
           preSoldRows.push({
             auction_id: savedId, player_id: cap, status: "sold",
-            sold_team_id: teamId, sold_price: 0, is_captain: true,
+            sold_team_id: teamId, sold_price: 0, is_captain: true, is_icon: false,
           });
           assignedPlayerIds.add(cap);
           preSoldByTeam.set(teamId, (preSoldByTeam.get(teamId) ?? 0) + 1);
@@ -205,7 +205,7 @@ export function AuctionWizardDialog({ trigger, auctionId }: { trigger: React.Rea
           if (!state.selectedPlayers.has(pid) || assignedPlayerIds.has(pid)) continue;
           preSoldRows.push({
             auction_id: savedId, player_id: pid, status: "sold",
-            sold_team_id: teamId, sold_price: 0, is_icon: true, icon_team_id: teamId,
+            sold_team_id: teamId, sold_price: 0, is_icon: true, is_captain: false, icon_team_id: teamId,
           });
           assignedPlayerIds.add(pid);
           preSoldByTeam.set(teamId, (preSoldByTeam.get(teamId) ?? 0) + 1);
@@ -229,6 +229,8 @@ export function AuctionWizardDialog({ trigger, auctionId }: { trigger: React.Rea
         player_id,
         auction_order: i + 1,
         status: "queued" as const,
+        is_captain: false,
+        is_icon: false,
       }));
       const allPlayerRows = [...queuedRows, ...preSoldRows];
       if (allPlayerRows.length > 0) {
