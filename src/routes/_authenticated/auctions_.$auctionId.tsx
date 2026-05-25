@@ -414,7 +414,7 @@ function LobbyRoom({
                 {nextPlayerQ.data.batting_style ? <> · {nextPlayerQ.data.batting_style}</> : null}
                 {nextPlayerQ.data.bowling_style ? <> · {nextPlayerQ.data.bowling_style}</> : null}
               </p>
-              <div className="mt-3 grid grid-cols-2 sm:grid-cols-5 gap-2">
+             <div className="mt-3 grid grid-cols-2 sm:grid-cols-6 gap-2">
                 {[
                   { label: "Matches", value: nextPlayerQ.data.matches ?? 0 },
                   { label: "Runs", value: nextPlayerQ.data.runs ?? 0 },
@@ -709,7 +709,7 @@ function LiveRoom({
                 )}
               </div>
             </div>
-            <div className="mt-3 grid grid-cols-3 sm:grid-cols-5 gap-2">
+            <div className="mt-3 grid grid-cols-3 sm:grid-cols-6 gap-2">
               {[
                 { label: "Matches", value: p?.matches ?? 0 },
                 { label: "Runs", value: p?.runs ?? 0 },
