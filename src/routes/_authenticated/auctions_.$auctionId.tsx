@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Calendar, Coins, Gavel, Play, ChevronsRight, Trash2, Users, Timer, CheckCircle2, Circle, StopCircle, AlertTriangle, Radio, Pause, RotateCcw } from "lucide-react";
+import { ArrowLeft, Calendar, Coins, Gavel, Play, ChevronsRight, Trash2, Users, Timer, CheckCircle2, Circle, StopCircle, AlertTriangle, Radio, Pause, RotateCcw, ExternalLink } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -49,7 +49,7 @@ function AuctionDetail() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("auction_players")
-        .select("id,status,sold_price,sold_team_id,is_captain,is_icon,round_ends_at,paused_remaining_seconds,player:players(id,name,role,photo,batting_style,bowling_style,matches,runs,wickets,batting_avg,batting_sr,bowling_economy)")
+        .select("id,status,sold_price,sold_team_id,is_captain,is_icon,round_ends_at,paused_remaining_seconds,player:players(id,name,role,photo,batting_style,bowling_style,matches,runs,wickets,batting_avg,batting_sr,bowling_economy,cric_heroes_link)")
         .eq("auction_id", auctionId)
         .order("name", { foreignTable: "players", ascending: true });
       if (error) throw error;
@@ -420,14 +420,24 @@ function LobbyRoom({
                 {nextPlayerQ.data.batting_style ? <> · {nextPlayerQ.data.batting_style}</> : null}
                 {nextPlayerQ.data.bowling_style ? <> · {nextPlayerQ.data.bowling_style}</> : null}
               </p>
+              {nextPlayerQ.data.cric_heroes_link && (
+                <a
+                  href={nextPlayerQ.data.cric_heroes_link}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-1 inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                >
+                  CricHeroes <ExternalLink className="h-3 w-3" />
+                </a>
+              )}
              <div className="mt-3 grid grid-cols-2 sm:grid-cols-6 gap-2">
                 {[
                   { label: "Matches", value: nextPlayerQ.data.matches ?? 0 },
                   { label: "Runs", value: nextPlayerQ.data.runs ?? 0 },
-                  { label: "Wickets", value: nextPlayerQ.data.wickets ?? 0 },
-                  { label: "Economy", value: nextPlayerQ.data.bowling_economy ?? 0 },
                   { label: "Average", value: nextPlayerQ.data.batting_avg ?? 0 },
                   { label: "Strike Rate", value: nextPlayerQ.data.batting_sr ?? 0 },
+                  { label: "Wickets", value: nextPlayerQ.data.wickets ?? 0 },
+                  { label: "Economy", value: nextPlayerQ.data.bowling_economy ?? 0 },
                 ].map((s) => (
                   <div key={s.label} className="rounded-lg bg-background/60 p-2 text-center">
                     <p className="text-[10px] uppercase tracking-widest text-muted-foreground">{s.label}</p>
@@ -719,10 +729,10 @@ function LiveRoom({
               {[
                 { label: "Matches", value: p?.matches ?? 0 },
                 { label: "Runs", value: p?.runs ?? 0 },
-                { label: "Wickets", value: p?.wickets ?? 0 },
-                { label: "Economy", value: p?.bowling_economy ?? 0 },
                 { label: "Average", value: p?.batting_avg ?? 0 },
                 { label: "Strike Rate", value: p?.batting_sr ?? 0 },
+                { label: "Wickets", value: p?.wickets ?? 0 },
+                { label: "Economy", value: p?.bowling_economy ?? 0 },
               ].map((s) => (
                 <div key={s.label} className="rounded-lg bg-background/60 p-2 text-center">
                   <p className="text-[10px] uppercase tracking-widest text-muted-foreground">{s.label}</p>
@@ -885,10 +895,10 @@ function IntermissionRoom({
               {[
                 { label: "Matches", value: p.matches ?? 0 },
                 { label: "Runs", value: p.runs ?? 0 },
-                { label: "Wickets", value: p.wickets ?? 0 },
-                { label: "Economy", value: p.bowling_economy ?? 0 },
                 { label: "Average", value: p.batting_avg ?? 0 },
                 { label: "Strike Rate", value: p.batting_sr ?? 0 },
+                { label: "Wickets", value: p.wickets ?? 0 },
+                { label: "Economy", value: p.bowling_economy ?? 0 },
               ].map((s) => (
                 <div key={s.label} className="rounded-lg bg-background/60 p-2 text-center">
                   <p className="text-[10px] uppercase tracking-widest text-muted-foreground">{s.label}</p>
