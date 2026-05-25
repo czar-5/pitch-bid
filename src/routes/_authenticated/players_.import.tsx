@@ -39,13 +39,14 @@ type Row = {
   wickets: number;
   batting_avg: number;
   batting_sr: number;
+  bowling_economy: number;
   photo_filename: string;
   cric_heroes_link: string;
   error: string | null;
 };
 
-const TEMPLATE = `name,role,batting_style,bowling_style,matches,runs,wickets,batting_avg,batting_sr,photo_filename,cric_heroes_link
-MS Dhoni,wicket_keeper,Right-hand bat,Right-arm medium,350,10773,1,38.09,87.56,dhoni.jpg,https://cricheroes.com/player/123
+const TEMPLATE = `name,role,batting_style,bowling_style,matches,runs,wickets,batting_avg,batting_sr,bowling_economy,photo_filename,cric_heroes_link
+MS Dhoni,wicket_keeper,Right-hand bat,Right-arm medium,350,10773,1,38.09,87.56,0,dhoni.jpg,https://cricheroes.com/player/123
 `;
 
 function parseNumber(v: string | undefined): number {
@@ -159,6 +160,7 @@ function BulkImportPage() {
           wickets: r.wickets,
           batting_avg: r.batting_avg,
           batting_sr: r.batting_sr,
+          bowling_economy: r.bowling_economy,
           photo: photoUrl,
           cric_heroes_link: r.cric_heroes_link || null,
         });
@@ -197,7 +199,7 @@ function BulkImportPage() {
           </Button>
         </div>
         <p className="text-xs text-muted-foreground">
-          Required headers: <code>name, role, batting_style, bowling_style, matches, runs, wickets, batting_avg, batting_sr, photo_filename, cric_heroes_link</code>.
+          Required headers: <code>name, role, batting_style, bowling_style, matches, runs, wickets, batting_avg, batting_sr, bowling_economy, photo_filename, cric_heroes_link</code>.
           Roles accepted: batter, bowler, batting_allrounder, bowling_allrounder, wicket_keeper.
         </p>
       </div>
@@ -319,6 +321,7 @@ function validateRow(raw: Record<string, string>, photos: Map<string, Blob>): Ro
     wickets: parseNumber(raw.wickets),
     batting_avg: parseNumber(raw.batting_avg),
     batting_sr: parseNumber(raw.batting_sr),
+    bowling_economy: parseNumber(raw.bowling_economy),
     photo_filename,
     cric_heroes_link: (raw.cric_heroes_link ?? "").trim(),
     error: errors.length ? errors.join("; ") : null,
