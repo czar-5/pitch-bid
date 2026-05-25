@@ -690,7 +690,7 @@ function LiveRoom({
 
   return (
     <div className="space-y-4">
-      <div className="rounded-xl border border-primary/40 bg-gradient-to-br from-primary/15 to-card p-5">
+      <div className="rounded-xl border border-primary/40 bg-gradient-to-br from-primary/15 to-card p-5 space-y-4">
         <div className="flex flex-row items-start gap-4">
           <div className="h-32 w-32 sm:h-48 sm:w-48 rounded-xl bg-muted overflow-hidden flex-shrink-0 aspect-square">
             {p?.photo
@@ -725,22 +725,22 @@ function LiveRoom({
                 )}
               </div>
             </div>
-            <div className="mt-3 grid grid-cols-3 sm:grid-cols-6 gap-2">
-              {[
-                { label: "Matches", value: p?.matches ?? 0 },
-                { label: "Runs", value: p?.runs ?? 0 },
-                { label: "Average", value: p?.batting_avg ?? 0 },
-                { label: "Strike Rate", value: p?.batting_sr ?? 0 },
-                { label: "Wickets", value: p?.wickets ?? 0 },
-                { label: "Economy", value: p?.bowling_economy ?? 0 },
-              ].map((s) => (
-                <div key={s.label} className="rounded-lg bg-background/60 p-2 text-center">
-                  <p className="text-[10px] uppercase tracking-widest text-muted-foreground">{s.label}</p>
-                  <p className="text-xl sm:text-2xl font-bold tabular-nums">{s.value}</p>
-                </div>
-              ))}
-            </div>
           </div>
+        </div>
+        <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+          {[
+            { label: "Matches", value: p?.matches ?? 0 },
+            { label: "Runs", value: p?.runs ?? 0 },
+            { label: "Average", value: p?.batting_avg ?? 0 },
+            { label: "Strike Rate", value: p?.batting_sr ?? 0 },
+            { label: "Wickets", value: p?.wickets ?? 0 },
+            { label: "Economy", value: p?.bowling_economy ?? 0 },
+          ].map((s) => (
+            <div key={s.label} className="rounded-lg bg-background/60 p-2 text-center">
+              <p className="text-[10px] uppercase tracking-widest text-muted-foreground">{s.label}</p>
+              <p className="text-xl sm:text-2xl font-bold tabular-nums">{s.value}</p>
+            </div>
+          ))}
         </div>
       </div>
 
