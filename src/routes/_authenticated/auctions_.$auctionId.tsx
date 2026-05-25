@@ -878,34 +878,36 @@ function IntermissionRoom({
       </div>
 
       {p && (
-        <div className="flex flex-col sm:flex-row items-start gap-5">
-          <div className="h-48 w-48 sm:h-56 sm:w-56 rounded-xl bg-muted overflow-hidden flex-shrink-0 mx-auto sm:mx-0">
-            {p.photo
-              ? <img src={p.photo} alt="" className="h-full w-full object-cover" />
-              : <div className="h-full w-full flex items-center justify-center text-5xl font-bold text-muted-foreground">{(p.name ?? "?")[0]}</div>}
-          </div>
-          <div className="flex-1 min-w-0 w-full">
-            <h2 className="text-2xl sm:text-3xl font-bold truncate">{p.name}</h2>
-            <p className="text-sm text-muted-foreground mt-1">
-              <span className="capitalize">{p.role?.replace(/_/g, " ") ?? "—"}</span>
-              {p.batting_style ? <> · {p.batting_style}</> : null}
-              {p.bowling_style ? <> · {p.bowling_style}</> : null}
-            </p>
-            <div className="mt-3 grid grid-cols-2 sm:grid-cols-6 gap-2">
-              {[
-                { label: "Matches", value: p.matches ?? 0 },
-                { label: "Runs", value: p.runs ?? 0 },
-                { label: "Average", value: p.batting_avg ?? 0 },
-                { label: "Strike Rate", value: p.batting_sr ?? 0 },
-                { label: "Wickets", value: p.wickets ?? 0 },
-                { label: "Economy", value: p.bowling_economy ?? 0 },
-              ].map((s) => (
-                <div key={s.label} className="rounded-lg bg-background/60 p-2 text-center">
-                  <p className="text-[10px] uppercase tracking-widest text-muted-foreground">{s.label}</p>
-                  <p className="text-2xl font-bold tabular-nums">{s.value}</p>
-                </div>
-              ))}
+        <div className="space-y-4">
+          <div className="flex flex-row items-start gap-4">
+            <div className="h-32 w-32 sm:h-56 sm:w-56 rounded-xl bg-muted overflow-hidden flex-shrink-0">
+              {p.photo
+                ? <img src={p.photo} alt="" className="h-full w-full object-cover" />
+                : <div className="h-full w-full flex items-center justify-center text-5xl font-bold text-muted-foreground">{(p.name ?? "?")[0]}</div>}
             </div>
+            <div className="flex-1 min-w-0 w-full">
+              <h2 className="text-xl sm:text-3xl font-bold truncate">{p.name}</h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                <span className="capitalize">{p.role?.replace(/_/g, " ") ?? "—"}</span>
+                {p.batting_style ? <> · {p.batting_style}</> : null}
+                {p.bowling_style ? <> · {p.bowling_style}</> : null}
+              </p>
+            </div>
+          </div>
+          <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+            {[
+              { label: "Matches", value: p.matches ?? 0 },
+              { label: "Runs", value: p.runs ?? 0 },
+              { label: "Average", value: p.batting_avg ?? 0 },
+              { label: "Strike Rate", value: p.batting_sr ?? 0 },
+              { label: "Wickets", value: p.wickets ?? 0 },
+              { label: "Economy", value: p.bowling_economy ?? 0 },
+            ].map((s) => (
+              <div key={s.label} className="rounded-lg bg-background/60 p-2 text-center">
+                <p className="text-[10px] uppercase tracking-widest text-muted-foreground">{s.label}</p>
+                <p className="text-xl sm:text-2xl font-bold tabular-nums">{s.value}</p>
+              </div>
+            ))}
           </div>
         </div>
       )}
