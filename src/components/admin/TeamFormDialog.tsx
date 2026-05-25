@@ -83,8 +83,8 @@ export function TeamFormDialog({ trigger, team, onSuccess, restricted = false }:
       if (error) throw error;
       const ids = (data ?? []).map((m) => m.user_id);
       if (ids.length === 0) return [] as ExistingMember[];
-      const { data: profiles } = await supabase.from("profiles").select("id,name,email").in("id", ids);
-      const map = new Map((profiles ?? []).map((p) => [p.id, p]));
+      const { data: profiles } = await supabase.rpc("admin_get_user_emails", { _ids: ids });
+      const map = new Map((profiles ?? []).map((p: { id: string; name: string; email: string | null }) => [p.id, p]));
       return (data ?? []).map((m) => ({
         ...m,
         membership_role: m.membership_role as MembershipRole,
@@ -96,11 +96,11 @@ export function TeamFormDialog({ trigger, team, onSuccess, restricted = false }:
   async function resolveEmailToUserId(email: string): Promise<string> {
     const trimmed = email.trim().toLowerCase();
     if (!trimmed) throw new Error("Email required");
-    const { data: profile, error: pErr } = await supabase
-      .from("profiles").select("id").eq("email", trimmed).maybeSingle();
+    const { data: userId, error: pErr } = await supabase
+      .rpc("admin_find_user_by_email", { _email: trimmed });
     if (pErr) throw pErr;
-    if (!profile) throw new Error(`No user found for ${trimmed} — they must sign up first`);
-    return profile.id;
+    if (!userId) throw new Error(`No user found for ${trimmed} — they must sign up first`);
+    return userId as string;
   }
 
   // Returns the conflicting team name if `userId` is already in another team, else null.

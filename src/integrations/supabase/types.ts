@@ -380,6 +380,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_find_user_by_email: { Args: { _email: string }; Returns: string }
+      admin_get_user_emails: {
+        Args: { _ids: string[] }
+        Returns: {
+          email: string
+          id: string
+          name: string
+        }[]
+      }
       end_auction: { Args: { _auction_id: string }; Returns: undefined }
       finalize_current: { Args: { _auction_id: string }; Returns: undefined }
       get_next_player: {

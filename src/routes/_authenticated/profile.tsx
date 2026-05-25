@@ -15,7 +15,6 @@ export const Route = createFileRoute("/_authenticated/profile")({
 
 interface ProfileData {
   name: string;
-  email: string | null;
   created_at: string;
 }
 
@@ -29,7 +28,7 @@ function ProfilePage() {
     async function loadProfile() {
       if (!user) { setLoading(false); return; }
       const [{ data: p }, { data: r }] = await Promise.all([
-        supabase.from("profiles").select("name, email, created_at").eq("id", user.id).single(),
+        supabase.from("profiles").select("name, created_at").eq("id", user.id).single(),
         supabase.from("user_roles").select("role").eq("user_id", user.id),
       ]);
       if (p) setProfile(p);
@@ -118,7 +117,7 @@ function ProfilePage() {
             <Mail className="h-4 w-4 text-muted-foreground shrink-0" />
             <span className="text-muted-foreground">Email</span>
             <span className="ml-auto font-medium">
-              {loading ? <Skeleton className="h-4 w-40" /> : profile?.email || user?.email}
+              {loading ? <Skeleton className="h-4 w-40" /> : user?.email}
             </span>
           </div>
           <div className="flex items-center gap-3 text-sm">
