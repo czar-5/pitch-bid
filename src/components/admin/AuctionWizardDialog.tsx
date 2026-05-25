@@ -29,6 +29,9 @@ type WizardState = {
   bid_rules: BidRule[];
   selectedTeams: Set<string>;
   selectedPlayers: Set<string>;
+  captains: Record<string, string | null>;       // teamId -> playerId | null
+  iconCounts: Record<string, number>;            // teamId -> N
+  iconPlayers: Record<string, string[]>;         // teamId -> playerIds
 };
 
 const DEFAULT_BID_RULES: BidRule[] = [
@@ -38,7 +41,7 @@ const DEFAULT_BID_RULES: BidRule[] = [
 const NO_SPIN =
   "[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none";
 
-const STEPS = ["Basics", "Money rules", "Teams", "Players", "Review"] as const;
+const STEPS = ["Basics", "Money rules", "Teams", "Players", "Captains & Icons", "Review"] as const;
 
 export function AuctionWizardDialog({ trigger, auctionId }: { trigger: React.ReactNode; auctionId?: string }) {
   const isEdit = !!auctionId;
@@ -60,6 +63,9 @@ export function AuctionWizardDialog({ trigger, auctionId }: { trigger: React.Rea
       bid_rules: DEFAULT_BID_RULES,
       selectedTeams: new Set(),
       selectedPlayers: new Set(),
+      captains: {},
+      iconCounts: {},
+      iconPlayers: {},
     };
   }
 
@@ -77,7 +83,7 @@ export function AuctionWizardDialog({ trigger, auctionId }: { trigger: React.Rea
       const [a, at, ap] = await Promise.all([
         supabase.from("auctions").select("*").eq("id", auctionId!).single(),
         supabase.from("auction_teams").select("team_id").eq("auction_id", auctionId!),
-        supabase.from("auction_players").select("player_id,auction_order").eq("auction_id", auctionId!).order("auction_order", { ascending: true }),
+        supabase.from("auction_players").select("player_id,auction_order,is_captain,is_icon,icon_team_id,sold_team_id").eq("auction_id", auctionId!).order("auction_order", { ascending: true }),
       ]);
       if (a.error) throw a.error;
       if (at.error) throw at.error;
@@ -91,6 +97,18 @@ export function AuctionWizardDialog({ trigger, auctionId }: { trigger: React.Rea
     const { auction, teams, players } = existingQ.data;
     const scheduled = new Date(auction.scheduled_at);
     const rules = (auction.bid_rules_json as BidRule[] | null) ?? DEFAULT_BID_RULES;
+    const captains: Record<string, string | null> = {};
+    const iconPlayers: Record<string, string[]> = {};
+    const iconCounts: Record<string, number> = {};
+    for (const p of players as any[]) {
+      if (p.is_captain && p.sold_team_id) captains[p.sold_team_id] = p.player_id;
+      if (p.is_icon && p.icon_team_id) {
+        iconPlayers[p.icon_team_id] = [...(iconPlayers[p.icon_team_id] ?? []), p.player_id];
+      }
+    }
+    for (const t of teams) {
+      iconCounts[t.team_id] = (iconPlayers[t.team_id] ?? []).length;
+    }
     setState({
       name: auction.name,
       scheduledDate: scheduled,
@@ -102,7 +120,10 @@ export function AuctionWizardDialog({ trigger, auctionId }: { trigger: React.Rea
       max_players_per_team: auction.max_players_per_team,
       bid_rules: rules.length ? rules : DEFAULT_BID_RULES,
       selectedTeams: new Set(teams.map((t) => t.team_id)),
-      selectedPlayers: new Set(players.map((p) => p.player_id)),
+      selectedPlayers: new Set((players as any[]).map((p) => p.player_id)),
+      captains,
+      iconCounts,
+      iconPlayers,
     });
   }, [open, isEdit, existingQ.data]);
 
@@ -166,24 +187,52 @@ export function AuctionWizardDialog({ trigger, auctionId }: { trigger: React.Rea
         savedId = auction.id;
       }
 
+      // Build pre-sold (captain/icon) assignments
+      const preSoldRows: any[] = [];
+      const preSoldByTeam = new Map<string, number>();
+      const assignedPlayerIds = new Set<string>();
+      for (const teamId of state.selectedTeams) {
+        const cap = state.captains[teamId];
+        if (cap && state.selectedPlayers.has(cap) && !assignedPlayerIds.has(cap)) {
+          preSoldRows.push({
+            auction_id: savedId, player_id: cap, status: "sold",
+            sold_team_id: teamId, sold_price: 0, is_captain: true,
+          });
+          assignedPlayerIds.add(cap);
+          preSoldByTeam.set(teamId, (preSoldByTeam.get(teamId) ?? 0) + 1);
+        }
+        for (const pid of state.iconPlayers[teamId] ?? []) {
+          if (!state.selectedPlayers.has(pid) || assignedPlayerIds.has(pid)) continue;
+          preSoldRows.push({
+            auction_id: savedId, player_id: pid, status: "sold",
+            sold_team_id: teamId, sold_price: 0, is_icon: true, icon_team_id: teamId,
+          });
+          assignedPlayerIds.add(pid);
+          preSoldByTeam.set(teamId, (preSoldByTeam.get(teamId) ?? 0) + 1);
+        }
+      }
+
       if (state.selectedTeams.size > 0) {
         const teamRows = Array.from(state.selectedTeams).map((team_id) => ({
           auction_id: savedId,
           team_id,
           budget_remaining: state.team_budget,
+          players_bought: preSoldByTeam.get(team_id) ?? 0,
         }));
         const { error: e2 } = await supabase.from("auction_teams").insert(teamRows);
         if (e2) throw e2;
       }
 
-      if (state.selectedPlayers.size > 0) {
-        const playerRows = Array.from(state.selectedPlayers).map((player_id, i) => ({
-          auction_id: savedId,
-          player_id,
-          auction_order: i + 1,
-          status: "queued" as const,
-        }));
-        const { error: e3 } = await supabase.from("auction_players").insert(playerRows);
+      const queuedIds = Array.from(state.selectedPlayers).filter((id) => !assignedPlayerIds.has(id));
+      const queuedRows = queuedIds.map((player_id, i) => ({
+        auction_id: savedId,
+        player_id,
+        auction_order: i + 1,
+        status: "queued" as const,
+      }));
+      const allPlayerRows = [...queuedRows, ...preSoldRows];
+      if (allPlayerRows.length > 0) {
+        const { error: e3 } = await supabase.from("auction_players").insert(allPlayerRows);
         if (e3) throw e3;
       }
 
@@ -214,6 +263,28 @@ export function AuctionWizardDialog({ trigger, auctionId }: { trigger: React.Rea
     );
     if (step === 2) return state.selectedTeams.size >= 2;
     if (step === 3) return state.selectedPlayers.size >= 1;
+    if (step === 4) {
+      // Each team's icon picker must match its count; no duplicates across teams.
+      const seen = new Set<string>();
+      for (const teamId of state.selectedTeams) {
+        const cap = state.captains[teamId];
+        if (cap) {
+          if (seen.has(cap)) return false;
+          seen.add(cap);
+        }
+        const icons = state.iconPlayers[teamId] ?? [];
+        const need = state.iconCounts[teamId] ?? 0;
+        if (icons.length !== need) return false;
+        for (const p of icons) {
+          if (seen.has(p)) return false;
+          seen.add(p);
+        }
+      }
+      // Ensure at least one queued player remains for the bidding auction.
+      const totalAssigned = seen.size;
+      if (state.selectedPlayers.size - totalAssigned < 1) return false;
+      return true;
+    }
     return true;
   }
 
@@ -235,7 +306,8 @@ export function AuctionWizardDialog({ trigger, auctionId }: { trigger: React.Rea
         {step === 1 && <StepMoney state={state} setState={setState} />}
         {step === 2 && <StepTeams state={state} setState={setState} teams={teamsQ.data ?? []} loading={teamsQ.isLoading} />}
         {step === 3 && <StepPlayers state={state} setState={setState} players={playersQ.data ?? []} loading={playersQ.isLoading} />}
-        {step === 4 && <StepReview state={state} teams={teamsQ.data ?? []} players={playersQ.data ?? []} />}
+        {step === 4 && <StepCaptainsIcons state={state} setState={setState} teams={teamsQ.data ?? []} players={playersQ.data ?? []} />}
+        {step === 5 && <StepReview state={state} teams={teamsQ.data ?? []} players={playersQ.data ?? []} />}
 
         <div className="flex items-center justify-between pt-4 border-t border-border mt-4">
           <Button variant="ghost" disabled={step === 0} onClick={() => setStep((s) => s - 1)}>
@@ -443,6 +515,8 @@ function StepPlayers({ state, setState, players, loading }: { state: WizardState
 
 function StepReview({ state, teams, players }: { state: WizardState; teams: TeamOpt[]; players: PlayerOpt[] }) {
   const teamNames = teams.filter((t) => state.selectedTeams.has(t.id)).map((t) => t.name);
+  const totalCaps = Array.from(state.selectedTeams).filter((id) => !!state.captains[id]).length;
+  const totalIcons = Array.from(state.selectedTeams).reduce((sum, id) => sum + (state.iconPlayers[id]?.length ?? 0), 0);
   return (
     <div className="space-y-3 text-sm">
       <Row label="Name" value={state.name} />
@@ -454,6 +528,131 @@ function StepReview({ state, teams, players }: { state: WizardState; teams: Team
       <Row label="Bid rules" value={`${state.bid_rules.length} tiers`} />
       <Row label="Teams" value={`${teamNames.length} · ${teamNames.slice(0, 4).join(", ")}${teamNames.length > 4 ? "…" : ""}`} />
       <Row label="Players" value={`${state.selectedPlayers.size} of ${players.length}`} />
+      <Row label="Pre-assigned" value={`${totalCaps} captain(s) · ${totalIcons} icon(s)`} />
+    </div>
+  );
+}
+
+function StepCaptainsIcons({
+  state, setState, teams, players,
+}: { state: WizardState; setState: Setter; teams: TeamOpt[]; players: PlayerOpt[] }) {
+  const selectedTeams = teams.filter((t) => state.selectedTeams.has(t.id));
+  const selectedPlayers = players.filter((p) => state.selectedPlayers.has(p.id));
+
+  // All players already taken across all teams (used to disable in pickers).
+  const takenGlobal = useMemo(() => {
+    const s = new Set<string>();
+    for (const tid of state.selectedTeams) {
+      const cap = state.captains[tid];
+      if (cap) s.add(cap);
+      for (const p of state.iconPlayers[tid] ?? []) s.add(p);
+    }
+    return s;
+  }, [state.selectedTeams, state.captains, state.iconPlayers]);
+
+  function setCaptain(teamId: string, playerId: string | null) {
+    setState((s) => ({ ...s, captains: { ...s.captains, [teamId]: playerId } }));
+  }
+  function setIconCount(teamId: string, n: number) {
+    setState((s) => {
+      const current = s.iconPlayers[teamId] ?? [];
+      const trimmed = current.slice(0, Math.max(0, n));
+      return {
+        ...s,
+        iconCounts: { ...s.iconCounts, [teamId]: Math.max(0, n) },
+        iconPlayers: { ...s.iconPlayers, [teamId]: trimmed },
+      };
+    });
+  }
+  function toggleIcon(teamId: string, playerId: string) {
+    setState((s) => {
+      const current = s.iconPlayers[teamId] ?? [];
+      const max = s.iconCounts[teamId] ?? 0;
+      const has = current.includes(playerId);
+      const next = has ? current.filter((p) => p !== playerId) : (current.length < max ? [...current, playerId] : current);
+      return { ...s, iconPlayers: { ...s.iconPlayers, [teamId]: next } };
+    });
+  }
+
+  return (
+    <div className="space-y-4">
+      <p className="text-sm text-muted-foreground">
+        Optionally assign a captain and a fixed number of icon players to each team. These players are marked sold before the auction and don't enter the bidding queue.
+      </p>
+      <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
+        {selectedTeams.map((t) => {
+          const cap = state.captains[t.id] ?? null;
+          const iconCount = state.iconCounts[t.id] ?? 0;
+          const iconPicked = state.iconPlayers[t.id] ?? [];
+          // Players this team can choose from = selected pool minus taken-by-others.
+          const teamTaken = new Set<string>();
+          if (cap) teamTaken.add(cap);
+          for (const p of iconPicked) teamTaken.add(p);
+          const others = new Set<string>();
+          for (const p of takenGlobal) if (!teamTaken.has(p)) others.add(p);
+          const captainOpts = selectedPlayers.filter((p) => !others.has(p.id));
+          const iconOpts = selectedPlayers.filter((p) => p.id !== cap && !others.has(p.id));
+          return (
+            <div key={t.id} className="rounded-lg border border-border p-3 space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="h-8 w-8 rounded bg-muted flex items-center justify-center text-xs font-bold overflow-hidden" style={{ background: t.primary_color ?? undefined }}>
+                  {t.logo_url ? <img src={t.logo_url} alt="" className="h-full w-full object-cover" /> : t.name.slice(0, 2).toUpperCase()}
+                </div>
+                <span className="font-semibold text-sm">{t.name}</span>
+              </div>
+
+              <div className="grid grid-cols-[1fr_8rem] gap-3">
+                <div>
+                  <Label className="text-xs">Captain (optional)</Label>
+                  <select
+                    className="mt-1 w-full h-9 rounded-md border border-input bg-background px-2 text-sm"
+                    value={cap ?? ""}
+                    onChange={(e) => setCaptain(t.id, e.target.value || null)}
+                  >
+                    <option value="">None</option>
+                    {captainOpts.map((p) => (
+                      <option key={p.id} value={p.id}>{p.name} · {p.role.replace(/_/g, " ")}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <Label className="text-xs">Icon players</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    className={cn("mt-1", NO_SPIN)}
+                    value={iconCount}
+                    onChange={(e) => setIconCount(t.id, Number(e.target.value) || 0)}
+                  />
+                </div>
+              </div>
+
+              {iconCount > 0 && (
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <Label className="text-xs">Pick {iconCount} icon player{iconCount === 1 ? "" : "s"}</Label>
+                    <span className="text-[10px] text-muted-foreground">{iconPicked.length}/{iconCount}</span>
+                  </div>
+                  <div className="max-h-40 overflow-y-auto rounded border border-border divide-y divide-border">
+                    {iconOpts.length === 0 && <p className="p-2 text-xs text-muted-foreground">No players available.</p>}
+                    {iconOpts.map((p) => {
+                      const checked = iconPicked.includes(p.id);
+                      const atCap = !checked && iconPicked.length >= iconCount;
+                      return (
+                        <label key={p.id} className={cn("flex items-center gap-2 p-2 text-sm", atCap ? "opacity-40 cursor-not-allowed" : "cursor-pointer hover:bg-muted/50")}>
+                          <Checkbox checked={checked} disabled={atCap} onCheckedChange={() => toggleIcon(t.id, p.id)} />
+                          <span className="flex-1 truncate">{p.name}</span>
+                          <span className="text-xs text-muted-foreground capitalize">{p.role.replace(/_/g, " ")}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

@@ -1,0 +1,1 @@
+ALTER TABLE public.auction_players ADD COLUMN IF NOT EXISTS is_captain boolean NOT NULL DEFAULT false;
