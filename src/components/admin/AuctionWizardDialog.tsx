@@ -515,6 +515,8 @@ function StepPlayers({ state, setState, players, loading }: { state: WizardState
 
 function StepReview({ state, teams, players }: { state: WizardState; teams: TeamOpt[]; players: PlayerOpt[] }) {
   const teamNames = teams.filter((t) => state.selectedTeams.has(t.id)).map((t) => t.name);
+  const totalCaps = Array.from(state.selectedTeams).filter((id) => !!state.captains[id]).length;
+  const totalIcons = Array.from(state.selectedTeams).reduce((sum, id) => sum + (state.iconPlayers[id]?.length ?? 0), 0);
   return (
     <div className="space-y-3 text-sm">
       <Row label="Name" value={state.name} />
@@ -526,6 +528,131 @@ function StepReview({ state, teams, players }: { state: WizardState; teams: Team
       <Row label="Bid rules" value={`${state.bid_rules.length} tiers`} />
       <Row label="Teams" value={`${teamNames.length} · ${teamNames.slice(0, 4).join(", ")}${teamNames.length > 4 ? "…" : ""}`} />
       <Row label="Players" value={`${state.selectedPlayers.size} of ${players.length}`} />
+      <Row label="Pre-assigned" value={`${totalCaps} captain(s) · ${totalIcons} icon(s)`} />
+    </div>
+  );
+}
+
+function StepCaptainsIcons({
+  state, setState, teams, players,
+}: { state: WizardState; setState: Setter; teams: TeamOpt[]; players: PlayerOpt[] }) {
+  const selectedTeams = teams.filter((t) => state.selectedTeams.has(t.id));
+  const selectedPlayers = players.filter((p) => state.selectedPlayers.has(p.id));
+
+  // All players already taken across all teams (used to disable in pickers).
+  const takenGlobal = useMemo(() => {
+    const s = new Set<string>();
+    for (const tid of state.selectedTeams) {
+      const cap = state.captains[tid];
+      if (cap) s.add(cap);
+      for (const p of state.iconPlayers[tid] ?? []) s.add(p);
+    }
+    return s;
+  }, [state.selectedTeams, state.captains, state.iconPlayers]);
+
+  function setCaptain(teamId: string, playerId: string | null) {
+    setState((s) => ({ ...s, captains: { ...s.captains, [teamId]: playerId } }));
+  }
+  function setIconCount(teamId: string, n: number) {
+    setState((s) => {
+      const current = s.iconPlayers[teamId] ?? [];
+      const trimmed = current.slice(0, Math.max(0, n));
+      return {
+        ...s,
+        iconCounts: { ...s.iconCounts, [teamId]: Math.max(0, n) },
+        iconPlayers: { ...s.iconPlayers, [teamId]: trimmed },
+      };
+    });
+  }
+  function toggleIcon(teamId: string, playerId: string) {
+    setState((s) => {
+      const current = s.iconPlayers[teamId] ?? [];
+      const max = s.iconCounts[teamId] ?? 0;
+      const has = current.includes(playerId);
+      const next = has ? current.filter((p) => p !== playerId) : (current.length < max ? [...current, playerId] : current);
+      return { ...s, iconPlayers: { ...s.iconPlayers, [teamId]: next } };
+    });
+  }
+
+  return (
+    <div className="space-y-4">
+      <p className="text-sm text-muted-foreground">
+        Optionally assign a captain and a fixed number of icon players to each team. These players are marked sold before the auction and don't enter the bidding queue.
+      </p>
+      <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
+        {selectedTeams.map((t) => {
+          const cap = state.captains[t.id] ?? null;
+          const iconCount = state.iconCounts[t.id] ?? 0;
+          const iconPicked = state.iconPlayers[t.id] ?? [];
+          // Players this team can choose from = selected pool minus taken-by-others.
+          const teamTaken = new Set<string>();
+          if (cap) teamTaken.add(cap);
+          for (const p of iconPicked) teamTaken.add(p);
+          const others = new Set<string>();
+          for (const p of takenGlobal) if (!teamTaken.has(p)) others.add(p);
+          const captainOpts = selectedPlayers.filter((p) => !others.has(p.id));
+          const iconOpts = selectedPlayers.filter((p) => p.id !== cap && !others.has(p.id));
+          return (
+            <div key={t.id} className="rounded-lg border border-border p-3 space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="h-8 w-8 rounded bg-muted flex items-center justify-center text-xs font-bold overflow-hidden" style={{ background: t.primary_color ?? undefined }}>
+                  {t.logo_url ? <img src={t.logo_url} alt="" className="h-full w-full object-cover" /> : t.name.slice(0, 2).toUpperCase()}
+                </div>
+                <span className="font-semibold text-sm">{t.name}</span>
+              </div>
+
+              <div className="grid grid-cols-[1fr_8rem] gap-3">
+                <div>
+                  <Label className="text-xs">Captain (optional)</Label>
+                  <select
+                    className="mt-1 w-full h-9 rounded-md border border-input bg-background px-2 text-sm"
+                    value={cap ?? ""}
+                    onChange={(e) => setCaptain(t.id, e.target.value || null)}
+                  >
+                    <option value="">None</option>
+                    {captainOpts.map((p) => (
+                      <option key={p.id} value={p.id}>{p.name} · {p.role.replace(/_/g, " ")}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <Label className="text-xs">Icon players</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    className={cn("mt-1", NO_SPIN)}
+                    value={iconCount}
+                    onChange={(e) => setIconCount(t.id, Number(e.target.value) || 0)}
+                  />
+                </div>
+              </div>
+
+              {iconCount > 0 && (
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <Label className="text-xs">Pick {iconCount} icon player{iconCount === 1 ? "" : "s"}</Label>
+                    <span className="text-[10px] text-muted-foreground">{iconPicked.length}/{iconCount}</span>
+                  </div>
+                  <div className="max-h-40 overflow-y-auto rounded border border-border divide-y divide-border">
+                    {iconOpts.length === 0 && <p className="p-2 text-xs text-muted-foreground">No players available.</p>}
+                    {iconOpts.map((p) => {
+                      const checked = iconPicked.includes(p.id);
+                      const atCap = !checked && iconPicked.length >= iconCount;
+                      return (
+                        <label key={p.id} className={cn("flex items-center gap-2 p-2 text-sm", atCap ? "opacity-40 cursor-not-allowed" : "cursor-pointer hover:bg-muted/50")}>
+                          <Checkbox checked={checked} disabled={atCap} onCheckedChange={() => toggleIcon(t.id, p.id)} />
+                          <span className="flex-1 truncate">{p.name}</span>
+                          <span className="text-xs text-muted-foreground capitalize">{p.role.replace(/_/g, " ")}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
