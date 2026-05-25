@@ -10,19 +10,24 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as PublicRouteImport } from './routes/_public'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedTeamsRouteImport } from './routes/_authenticated/teams'
 import { Route as AuthenticatedProfileRouteImport } from './routes/_authenticated/profile'
 import { Route as AuthenticatedPlayersRouteImport } from './routes/_authenticated/players'
 import { Route as AuthenticatedAuctionsRouteImport } from './routes/_authenticated/auctions'
+import { Route as PublicAuctionsAuctionIdRouteImport } from './routes/_public/auctions_.$auctionId'
 import { Route as AuthenticatedTeamsTeamIdRouteImport } from './routes/_authenticated/teams_.$teamId'
 import { Route as AuthenticatedPlayersImportRouteImport } from './routes/_authenticated/players_.import'
-import { Route as AuthenticatedAuctionsAuctionIdRouteImport } from './routes/_authenticated/auctions_.$auctionId'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PublicRoute = PublicRouteImport.update({
+  id: '/_public',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedRoute = AuthenticatedRouteImport.update({
@@ -54,6 +59,11 @@ const AuthenticatedAuctionsRoute = AuthenticatedAuctionsRouteImport.update({
   path: '/auctions',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const PublicAuctionsAuctionIdRoute = PublicAuctionsAuctionIdRouteImport.update({
+  id: '/auctions_/$auctionId',
+  path: '/auctions/$auctionId',
+  getParentRoute: () => PublicRoute,
+} as any)
 const AuthenticatedTeamsTeamIdRoute =
   AuthenticatedTeamsTeamIdRouteImport.update({
     id: '/teams_/$teamId',
@@ -66,12 +76,6 @@ const AuthenticatedPlayersImportRoute =
     path: '/players/import',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
-const AuthenticatedAuctionsAuctionIdRoute =
-  AuthenticatedAuctionsAuctionIdRouteImport.update({
-    id: '/auctions_/$auctionId',
-    path: '/auctions/$auctionId',
-    getParentRoute: () => AuthenticatedRoute,
-  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -80,9 +84,9 @@ export interface FileRoutesByFullPath {
   '/players': typeof AuthenticatedPlayersRoute
   '/profile': typeof AuthenticatedProfileRoute
   '/teams': typeof AuthenticatedTeamsRoute
-  '/auctions/$auctionId': typeof AuthenticatedAuctionsAuctionIdRoute
   '/players/import': typeof AuthenticatedPlayersImportRoute
   '/teams/$teamId': typeof AuthenticatedTeamsTeamIdRoute
+  '/auctions/$auctionId': typeof PublicAuctionsAuctionIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -91,22 +95,23 @@ export interface FileRoutesByTo {
   '/players': typeof AuthenticatedPlayersRoute
   '/profile': typeof AuthenticatedProfileRoute
   '/teams': typeof AuthenticatedTeamsRoute
-  '/auctions/$auctionId': typeof AuthenticatedAuctionsAuctionIdRoute
   '/players/import': typeof AuthenticatedPlayersImportRoute
   '/teams/$teamId': typeof AuthenticatedTeamsTeamIdRoute
+  '/auctions/$auctionId': typeof PublicAuctionsAuctionIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteWithChildren
+  '/_public': typeof PublicRouteWithChildren
   '/login': typeof LoginRoute
   '/_authenticated/auctions': typeof AuthenticatedAuctionsRoute
   '/_authenticated/players': typeof AuthenticatedPlayersRoute
   '/_authenticated/profile': typeof AuthenticatedProfileRoute
   '/_authenticated/teams': typeof AuthenticatedTeamsRoute
-  '/_authenticated/auctions_/$auctionId': typeof AuthenticatedAuctionsAuctionIdRoute
   '/_authenticated/players_/import': typeof AuthenticatedPlayersImportRoute
   '/_authenticated/teams_/$teamId': typeof AuthenticatedTeamsTeamIdRoute
+  '/_public/auctions_/$auctionId': typeof PublicAuctionsAuctionIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -117,9 +122,9 @@ export interface FileRouteTypes {
     | '/players'
     | '/profile'
     | '/teams'
-    | '/auctions/$auctionId'
     | '/players/import'
     | '/teams/$teamId'
+    | '/auctions/$auctionId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -128,26 +133,28 @@ export interface FileRouteTypes {
     | '/players'
     | '/profile'
     | '/teams'
-    | '/auctions/$auctionId'
     | '/players/import'
     | '/teams/$teamId'
+    | '/auctions/$auctionId'
   id:
     | '__root__'
     | '/'
     | '/_authenticated'
+    | '/_public'
     | '/login'
     | '/_authenticated/auctions'
     | '/_authenticated/players'
     | '/_authenticated/profile'
     | '/_authenticated/teams'
-    | '/_authenticated/auctions_/$auctionId'
     | '/_authenticated/players_/import'
     | '/_authenticated/teams_/$teamId'
+    | '/_public/auctions_/$auctionId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRoute: typeof AuthenticatedRouteWithChildren
+  PublicRoute: typeof PublicRouteWithChildren
   LoginRoute: typeof LoginRoute
 }
 
@@ -158,6 +165,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_public': {
+      id: '/_public'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof PublicRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated': {
@@ -202,6 +216,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAuctionsRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_public/auctions_/$auctionId': {
+      id: '/_public/auctions_/$auctionId'
+      path: '/auctions/$auctionId'
+      fullPath: '/auctions/$auctionId'
+      preLoaderRoute: typeof PublicAuctionsAuctionIdRouteImport
+      parentRoute: typeof PublicRoute
+    }
     '/_authenticated/teams_/$teamId': {
       id: '/_authenticated/teams_/$teamId'
       path: '/teams/$teamId'
@@ -216,13 +237,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPlayersImportRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
-    '/_authenticated/auctions_/$auctionId': {
-      id: '/_authenticated/auctions_/$auctionId'
-      path: '/auctions/$auctionId'
-      fullPath: '/auctions/$auctionId'
-      preLoaderRoute: typeof AuthenticatedAuctionsAuctionIdRouteImport
-      parentRoute: typeof AuthenticatedRoute
-    }
   }
 }
 
@@ -231,7 +245,6 @@ interface AuthenticatedRouteChildren {
   AuthenticatedPlayersRoute: typeof AuthenticatedPlayersRoute
   AuthenticatedProfileRoute: typeof AuthenticatedProfileRoute
   AuthenticatedTeamsRoute: typeof AuthenticatedTeamsRoute
-  AuthenticatedAuctionsAuctionIdRoute: typeof AuthenticatedAuctionsAuctionIdRoute
   AuthenticatedPlayersImportRoute: typeof AuthenticatedPlayersImportRoute
   AuthenticatedTeamsTeamIdRoute: typeof AuthenticatedTeamsTeamIdRoute
 }
@@ -241,7 +254,6 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedPlayersRoute: AuthenticatedPlayersRoute,
   AuthenticatedProfileRoute: AuthenticatedProfileRoute,
   AuthenticatedTeamsRoute: AuthenticatedTeamsRoute,
-  AuthenticatedAuctionsAuctionIdRoute: AuthenticatedAuctionsAuctionIdRoute,
   AuthenticatedPlayersImportRoute: AuthenticatedPlayersImportRoute,
   AuthenticatedTeamsTeamIdRoute: AuthenticatedTeamsTeamIdRoute,
 }
@@ -250,9 +262,21 @@ const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
   AuthenticatedRouteChildren,
 )
 
+interface PublicRouteChildren {
+  PublicAuctionsAuctionIdRoute: typeof PublicAuctionsAuctionIdRoute
+}
+
+const PublicRouteChildren: PublicRouteChildren = {
+  PublicAuctionsAuctionIdRoute: PublicAuctionsAuctionIdRoute,
+}
+
+const PublicRouteWithChildren =
+  PublicRoute._addFileChildren(PublicRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRoute: AuthenticatedRouteWithChildren,
+  PublicRoute: PublicRouteWithChildren,
   LoginRoute: LoginRoute,
 }
 export const routeTree = rootRouteImport

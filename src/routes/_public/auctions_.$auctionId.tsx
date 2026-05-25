@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/alert-dialog";
 // (Accordion replaced by browser-tab style TeamsTabs component below)
 
-export const Route = createFileRoute("/_authenticated/auctions_/$auctionId")({
+export const Route = createFileRoute("/_public/auctions_/$auctionId")({
   component: AuctionDetail,
 });
 
