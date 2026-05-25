@@ -234,6 +234,7 @@ export type Database = {
           batting_avg: number
           batting_sr: number
           batting_style: string | null
+          bowling_economy: number
           bowling_style: string | null
           created_at: string
           cric_heroes_link: string | null
@@ -249,6 +250,7 @@ export type Database = {
           batting_avg?: number
           batting_sr?: number
           batting_style?: string | null
+          bowling_economy?: number
           bowling_style?: string | null
           created_at?: string
           cric_heroes_link?: string | null
@@ -264,6 +266,7 @@ export type Database = {
           batting_avg?: number
           batting_sr?: number
           batting_style?: string | null
+          bowling_economy?: number
           bowling_style?: string | null
           created_at?: string
           cric_heroes_link?: string | null

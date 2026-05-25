@@ -1,0 +1,1 @@
+ALTER TABLE public.players ADD COLUMN bowling_economy numeric NOT NULL DEFAULT 0;
