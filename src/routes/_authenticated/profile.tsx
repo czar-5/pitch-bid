@@ -29,7 +29,7 @@ function ProfilePage() {
     async function loadProfile() {
       if (!user) { setLoading(false); return; }
       const [{ data: p }, { data: r }] = await Promise.all([
-        supabase.from("profiles").select("name, email, created_at").eq("id", user.id).single(),
+        supabase.from("profiles").select("name, created_at").eq("id", user.id).single(),
         supabase.from("user_roles").select("role").eq("user_id", user.id),
       ]);
       if (p) setProfile(p);
