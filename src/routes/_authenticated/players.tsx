@@ -111,7 +111,7 @@ function PlayersPage() {
                 {p.bowling_style ? ` · ${p.bowling_style}` : ""}
               </p>
               <p className="mt-0.5 text-[11px] text-muted-foreground/80 font-mono">
-                M {p.matches} · R {p.runs} · W {p.wickets} · Avg {Number(p.batting_avg).toFixed(2)} · SR {Number(p.batting_sr).toFixed(2)}
+                M {p.matches} · R {p.runs} · W {p.wickets} · Avg {Number(p.batting_avg).toFixed(2)} · SR {Number(p.batting_sr).toFixed(2)} · Econ {Number(p.bowling_economy).toFixed(2)}
               </p>
               {p.cric_heroes_link && (
                 <a
