@@ -581,6 +581,10 @@ function LiveRoom({
     if (!selectedTeam && myTeams[0]) setSelectedTeam(myTeams[0].team.id);
   }, [myTeams, selectedTeam]);
 
+  // Lock the bid button after a successful click until the new high bid arrives
+  // (or the round changes / a new high bid arrives via realtime).
+  const [lastSubmittedAmount, setLastSubmittedAmount] = useState<number | null>(null);
+
   // countdown
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
@@ -602,13 +606,31 @@ function LiveRoom({
     return highBid.amount + (rule?.increment ?? 100);
   }, [highBid, auction]);
 
+  // Clear the post-click lock once the high bid catches up to (or exceeds)
+  // what we submitted, or when the round/player changes.
+  useEffect(() => {
+    if (lastSubmittedAmount != null && (highBid?.amount ?? 0) >= lastSubmittedAmount) {
+      setLastSubmittedAmount(null);
+    }
+  }, [highBid?.amount, lastSubmittedAmount]);
+  useEffect(() => {
+    setLastSubmittedAmount(null);
+  }, [currentAp?.id]);
+  const awaitingBidEcho = lastSubmittedAmount != null && (highBid?.amount ?? 0) < lastSubmittedAmount;
+
   const placeBid = useMutation({
     mutationFn: async () => {
       if (!currentAp || !selectedTeam) throw new Error("Pick a team first");
       const { error } = await supabase.rpc("place_bid", { _auction_player_id: currentAp.id, _team_id: selectedTeam });
       if (error) throw error;
     },
-    onError: (e: Error) => toast.error(e.message),
+    onMutate: () => {
+      setLastSubmittedAmount(nextAmount);
+    },
+    onError: (e: Error) => {
+      setLastSubmittedAmount(null);
+      toast.error(e.message);
+    },
   });
 
   const finalize = useMutation({
@@ -786,7 +808,7 @@ function LiveRoom({
               <Button
                 className="flex-1 h-14 text-base font-bold"
                 onClick={() => placeBid.mutate()}
-                disabled={placeBid.isPending || !selectedTeam || expired || isPaused || (leadingTeam?.team?.id === selectedTeam) || bidBlocked}
+                disabled={placeBid.isPending || awaitingBidEcho || !selectedTeam || expired || isPaused || (leadingTeam?.team?.id === selectedTeam) || bidBlocked}
                 title={blockedReason ?? undefined}
               >
                 <Gavel className="h-4 w-4 mr-2" />
@@ -795,10 +817,12 @@ function LiveRoom({
                   : expired
                     ? "Round closed"
                     : leadingTeam?.team?.id === selectedTeam
-                    ? "You're leading"
-                    : blockedReason
-                      ? blockedReason
-                      : `Bid ${nextAmount.toLocaleString()}`}
+                      ? "You're leading"
+                      : placeBid.isPending || awaitingBidEcho
+                        ? "Bidding…"
+                        : blockedReason
+                          ? blockedReason
+                          : `Bid ${nextAmount.toLocaleString()}`}
               </Button>
               {remaining != null && (
                 <div
