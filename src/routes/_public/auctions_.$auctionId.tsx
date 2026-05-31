@@ -606,6 +606,18 @@ function LiveRoom({
     return highBid.amount + (rule?.increment ?? 100);
   }, [highBid, auction]);
 
+  // Clear the post-click lock once the high bid catches up to (or exceeds)
+  // what we submitted, or when the round/player changes.
+  useEffect(() => {
+    if (lastSubmittedAmount != null && (highBid?.amount ?? 0) >= lastSubmittedAmount) {
+      setLastSubmittedAmount(null);
+    }
+  }, [highBid?.amount, lastSubmittedAmount]);
+  useEffect(() => {
+    setLastSubmittedAmount(null);
+  }, [currentAp?.id]);
+  const awaitingBidEcho = lastSubmittedAmount != null && (highBid?.amount ?? 0) < lastSubmittedAmount;
+
   const placeBid = useMutation({
     mutationFn: async () => {
       if (!currentAp || !selectedTeam) throw new Error("Pick a team first");
