@@ -12,7 +12,7 @@ export const Route = createFileRoute("/_authenticated/players_/import")({
   component: BulkImportPage,
 });
 
-const ROLE_MAP: Record<string, "batter" | "bowler" | "allrounder" | "batting_allrounder" | "bowling_allrounder" | "wicket_keeper"> = {
+const ROLE_MAP: Record<string, "batter" | "bowler" | "allrounder" | "batting_allrounder" | "bowling_allrounder" | "wicket_keeper" | "none"> = {
   batter: "batter",
   batsman: "batter",
   bowler: "bowler",
@@ -29,6 +29,8 @@ const ROLE_MAP: Record<string, "batter" | "bowler" | "allrounder" | "batting_all
   "wicket keeper": "wicket_keeper",
   wicketkeeper: "wicket_keeper",
   wk: "wicket_keeper",
+  none: "none",
+  "": "none",
 };
 
 type Row = {

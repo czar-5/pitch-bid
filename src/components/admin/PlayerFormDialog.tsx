@@ -19,7 +19,7 @@ import { ImageUploader } from "./ImageUploader";
 
 const schema = z.object({
   name: z.string().min(1).max(120),
-  role: z.enum(["batter", "bowler", "allrounder", "batting_allrounder", "bowling_allrounder", "wicket_keeper"]),
+  role: z.enum(["batter", "bowler", "allrounder", "batting_allrounder", "bowling_allrounder", "wicket_keeper", "none"]),
   batting_style: z.string().max(60).nullable().optional(),
   bowling_style: z.string().max(60).nullable().optional(),
   matches: z.coerce.number().int().min(0),
@@ -36,7 +36,7 @@ type FormValues = z.infer<typeof schema>;
 type Player = {
   id: string;
   name: string;
-  role: "batter" | "bowler" | "allrounder" | "batting_allrounder" | "bowling_allrounder" | "wicket_keeper";
+  role: "batter" | "bowler" | "allrounder" | "batting_allrounder" | "bowling_allrounder" | "wicket_keeper" | "none";
   batting_style: string | null;
   bowling_style: string | null;
   matches: number;
@@ -129,6 +129,7 @@ export function PlayerFormDialog({ trigger, player }: PlayerFormDialogProps) {
                       <SelectItem value="batting_allrounder">Batting Allrounder</SelectItem>
                       <SelectItem value="bowling_allrounder">Bowling Allrounder</SelectItem>
                       <SelectItem value="wicket_keeper">Wicket Keeper</SelectItem>
+                      <SelectItem value="none">— (none)</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
