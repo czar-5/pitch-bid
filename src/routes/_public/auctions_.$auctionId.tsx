@@ -67,8 +67,11 @@ function AuctionDetail() {
         () => { qc.invalidateQueries({ queryKey: ["auction-players", auctionId] }); qc.invalidateQueries({ queryKey: ["next-player", auctionId] }); })
       .on("postgres_changes", { event: "*", schema: "public", table: "auction_teams", filter: `auction_id=eq.${auctionId}` },
         () => qc.invalidateQueries({ queryKey: ["auction-teams", auctionId] }))
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "bids" },
-        () => qc.invalidateQueries({ queryKey: ["live-bids", auctionId] }))
+      .on("postgres_changes", { event: "*", schema: "public", table: "bids" },
+        () => {
+          qc.invalidateQueries({ queryKey: ["live-bids", auctionId] });
+          qc.invalidateQueries({ queryKey: ["bids-history"] });
+        })
       .subscribe();
     return () => { supabase.removeChannel(ch); };
   }, [auctionId, qc]);
