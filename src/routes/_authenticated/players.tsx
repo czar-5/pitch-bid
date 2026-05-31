@@ -22,6 +22,7 @@ export const Route = createFileRoute("/_authenticated/players")({
 const roleLabel: Record<string, string> = {
   batter: "Batter",
   bowler: "Bowler",
+  allrounder: "Allrounder",
   batting_allrounder: "Batting Allrounder",
   bowling_allrounder: "Bowling Allrounder",
   wicket_keeper: "Wicket Keeper",
