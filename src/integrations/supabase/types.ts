@@ -453,6 +453,7 @@ export type Database = {
         | "bowling_allrounder"
         | "wicket_keeper"
         | "allrounder"
+        | "none"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -598,6 +599,7 @@ export const Constants = {
         "bowling_allrounder",
         "wicket_keeper",
         "allrounder",
+        "none",
       ],
     },
   },

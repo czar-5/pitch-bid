@@ -1,0 +1,1 @@
+ALTER TYPE public.player_role ADD VALUE IF NOT EXISTS 'none';
