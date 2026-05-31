@@ -808,7 +808,7 @@ function LiveRoom({
               <Button
                 className="flex-1 h-14 text-base font-bold"
                 onClick={() => placeBid.mutate()}
-                disabled={placeBid.isPending || !selectedTeam || expired || isPaused || (leadingTeam?.team?.id === selectedTeam) || bidBlocked}
+                disabled={placeBid.isPending || awaitingBidEcho || !selectedTeam || expired || isPaused || (leadingTeam?.team?.id === selectedTeam) || bidBlocked}
                 title={blockedReason ?? undefined}
               >
                 <Gavel className="h-4 w-4 mr-2" />
@@ -817,10 +817,12 @@ function LiveRoom({
                   : expired
                     ? "Round closed"
                     : leadingTeam?.team?.id === selectedTeam
-                    ? "You're leading"
-                    : blockedReason
-                      ? blockedReason
-                      : `Bid ${nextAmount.toLocaleString()}`}
+                      ? "You're leading"
+                      : placeBid.isPending || awaitingBidEcho
+                        ? "Bidding…"
+                        : blockedReason
+                          ? blockedReason
+                          : `Bid ${nextAmount.toLocaleString()}`}
               </Button>
               {remaining != null && (
                 <div
