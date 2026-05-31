@@ -608,7 +608,13 @@ function LiveRoom({
       const { error } = await supabase.rpc("place_bid", { _auction_player_id: currentAp.id, _team_id: selectedTeam });
       if (error) throw error;
     },
-    onError: (e: Error) => toast.error(e.message),
+    onMutate: () => {
+      setLastSubmittedAmount(nextAmount);
+    },
+    onError: (e: Error) => {
+      setLastSubmittedAmount(null);
+      toast.error(e.message);
+    },
   });
 
   const finalize = useMutation({
