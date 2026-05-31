@@ -429,6 +429,7 @@ export type Database = {
         Args: { _auction_player_id: string; _team_id: string }
         Returns: number
       }
+      reset_bid: { Args: { _auction_id: string }; Returns: undefined }
       reset_round: { Args: { _auction_id: string }; Returns: undefined }
       resume_round: { Args: { _auction_id: string }; Returns: undefined }
       sell_current: { Args: { _auction_id: string }; Returns: undefined }

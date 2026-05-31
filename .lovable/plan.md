@@ -1,23 +1,23 @@
-## Plan
+## Plan: Add "Reset bid" admin control to live auction
 
-Add a new value `allrounder` to the `player_role` Postgres enum so it becomes selectable alongside the existing roles (`batter`, `bowler`, `batting_allrounder`, `bowling_allrounder`, `wicket_keeper`).
+Add a new admin button next to **Pause timer** / **Reset timer** in the live auction page that clears all bids placed on the current player so bidding restarts from the baseline price. The countdown timer is left untouched (admin can use Reset timer separately if needed).
 
-### Steps
+### 1. Database — new SECURITY DEFINER function
 
-1. **Database migration** — `ALTER TYPE public.player_role ADD VALUE IF NOT EXISTS 'allrounder';`
-   - Enum additions must run outside a transaction block; the migration will be a single standalone `ALTER TYPE` statement.
-   - After it runs, `src/integrations/supabase/types.ts` will auto-regenerate to include the new value.
+Add `public.reset_bid(_auction_id uuid)` via migration:
 
-2. **UI updates** — wherever role is shown or selected, add the new option:
-   - `src/components/admin/PlayerFormDialog.tsx` — role `<Select>` options.
-   - `src/routes/_authenticated/players.tsx` and `players_.import.tsx` — any role label maps / filters.
-   - `src/routes/_public/auctions_.$auctionId.tsx` — role badge/label rendering.
-   I'll grep for `batting_allrounder` / `player_role` and update each occurrence with a short, human label like "All-rounder".
+- Admin-only guard (`has_role(auth.uid(), 'admin')`).
+- Look up `current_player_id` on the auction; no-op if null.
+- `DELETE FROM bids WHERE auction_player_id = <current>` — wipes bid history for the live player.
+- Leaves `auction_players.round_ends_at` / `paused_remaining_seconds` as-is (timer unaffected, matching the user's wording).
 
-### Open question
+### 2. Frontend — `src/routes/_public/auctions_.$auctionId.tsx`
 
-You already have `batting_allrounder` and `bowling_allrounder`. Adding a generic `allrounder` gives three overlapping options. Do you want:
-- **(a)** Keep all three (generic + batting + bowling all-rounder), or
-- **(b)** Replace the two specific ones with just `allrounder` (this requires migrating existing player rows and is destructive)?
+- Add a `resetBid` `useMutation` alongside `pauseRound` / `resetRound` that calls `supabase.rpc("reset_bid", { _auction_id: auctionId })` and invalidates the `["auction", auctionId]` and bids queries on success.
+- Add a `<Button variant="outline">` with an `Eraser` (lucide) icon labelled **"Reset bid"** in the admin controls row right after **Reset timer**. Disabled while the mutation is pending or when there is no current player.
+- Same admin-visibility gating as the existing Pause/Reset timer buttons.
 
-I'll proceed with **(a)** unless you say otherwise.
+### Notes
+
+- No changes to RLS; the RPC is `SECURITY DEFINER` and self-guards on admin role, consistent with the other auction control RPCs.
+- After deletion, existing UI selectors (`highBid`, leading team, current bid display) will naturally recompute to baseline once the bids query refetches via realtime + invalidation.
