@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Calendar, Coins, Gavel, Play, ChevronsRight, Trash2, Users, Timer, CheckCircle2, Circle, StopCircle, AlertTriangle, Radio, Pause, RotateCcw, ExternalLink } from "lucide-react";
+import { ArrowLeft, Calendar, Coins, Gavel, Play, ChevronsRight, Trash2, Users, Timer, CheckCircle2, Circle, StopCircle, AlertTriangle, Radio, Pause, RotateCcw, Eraser, ExternalLink } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -653,6 +653,17 @@ function LiveRoom({
     onSuccess: () => qc.invalidateQueries({ queryKey: ["auction-players", auctionId] }),
     onError: (e: Error) => toast.error(e.message),
   });
+  const resetBid = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.rpc("reset_bid", { _auction_id: auctionId });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["auction", auctionId] });
+      qc.invalidateQueries({ queryKey: ["auction-players", auctionId] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   if (!currentAp) {
     return (
@@ -821,6 +832,9 @@ function LiveRoom({
               <RotateCcw className="h-4 w-4 mr-1" /> Reset timer
             </Button>
           </div>
+          <Button variant="outline" className="w-full" onClick={() => resetBid.mutate()} disabled={resetBid.isPending}>
+            <Eraser className="h-4 w-4 mr-1" /> Reset bid
+          </Button>
           <Button className="w-full" onClick={() => finalize.mutate()} disabled={finalize.isPending}>
             <ChevronsRight className="h-4 w-4 mr-1" />
             {highBid ? `Sell to ${highBid.team?.name} for ${highBid.amount.toLocaleString()} · Next` : "Mark unsold · Next"}
