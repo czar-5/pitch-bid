@@ -26,6 +26,7 @@ const roleLabel: Record<string, string> = {
   batting_allrounder: "Batting Allrounder",
   bowling_allrounder: "Bowling Allrounder",
   wicket_keeper: "Wicket Keeper",
+  none: "—",
 };
 
 function PlayersPage() {
