@@ -12,10 +12,13 @@ export const Route = createFileRoute("/_authenticated/players_/import")({
   component: BulkImportPage,
 });
 
-const ROLE_MAP: Record<string, "batter" | "bowler" | "batting_allrounder" | "bowling_allrounder" | "wicket_keeper"> = {
+const ROLE_MAP: Record<string, "batter" | "bowler" | "allrounder" | "batting_allrounder" | "bowling_allrounder" | "wicket_keeper"> = {
   batter: "batter",
   batsman: "batter",
   bowler: "bowler",
+  allrounder: "allrounder",
+  "all-rounder": "allrounder",
+  "all rounder": "allrounder",
   batting_allrounder: "batting_allrounder",
   "batting allrounder": "batting_allrounder",
   "batting all-rounder": "batting_allrounder",
@@ -200,7 +203,7 @@ function BulkImportPage() {
         </div>
         <p className="text-xs text-muted-foreground">
           Required headers: <code>name, role, batting_style, bowling_style, matches, runs, wickets, bowling_economy, batting_avg, batting_sr, photo_filename, cric_heroes_link</code>.
-          Roles accepted: batter, bowler, batting_allrounder, bowling_allrounder, wicket_keeper.
+          Roles accepted: batter, bowler, allrounder, batting_allrounder, bowling_allrounder, wicket_keeper.
         </p>
       </div>
 
