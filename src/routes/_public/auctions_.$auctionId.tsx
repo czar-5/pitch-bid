@@ -581,6 +581,10 @@ function LiveRoom({
     if (!selectedTeam && myTeams[0]) setSelectedTeam(myTeams[0].team.id);
   }, [myTeams, selectedTeam]);
 
+  // Lock the bid button after a successful click until the new high bid arrives
+  // (or the round changes / a new high bid arrives via realtime).
+  const [lastSubmittedAmount, setLastSubmittedAmount] = useState<number | null>(null);
+
   // countdown
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
