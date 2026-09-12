@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Calendar, Coins, Gavel, Play, ChevronsRight, Trash2, Users, Timer, CheckCircle2, Circle, StopCircle, AlertTriangle, Radio, Pause, RotateCcw, Eraser, ExternalLink } from "lucide-react";
+import { ArrowLeft, Calendar, Coins, Gavel, Play, ChevronsRight, Trash2, Users, Timer, CheckCircle2, Circle, StopCircle, AlertTriangle, Radio, Pause, RotateCcw, Eraser, ExternalLink, Undo2 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -14,6 +14,16 @@ import {
 // (Accordion replaced by browser-tab style TeamsTabs component below)
 
 export const Route = createFileRoute("/_public/auctions_/$auctionId")({
+  head: () => ({
+    meta: [
+      { title: "Live Auction | PitchBid" },
+      { name: "description", content: "Follow live player bidding, team budgets, and auction results on PitchBid." },
+      { property: "og:title", content: "Live Auction | PitchBid" },
+      { property: "og:description", content: "Follow live player bidding, team budgets, and auction results on PitchBid." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
   component: AuctionDetail,
 });
 
@@ -113,6 +123,8 @@ function AuctionDetail() {
   const status = a.status as string;
   const isLive = status === "live";
   const isLobby = status === "lobby";
+  const isOffline = a.method === "offline";
+  const isController = isAdmin || (!!user?.id && a.auctioneer_user_id === user.id);
   const currentAp = playersQ.data?.find((p) => p.id === a.current_player_id) ?? null;
   const lastFinalizedAp = (a as { last_finalized_player_id?: string | null }).last_finalized_player_id
     ? playersQ.data?.find((p) => p.id === (a as { last_finalized_player_id?: string | null }).last_finalized_player_id) ?? null
@@ -137,6 +149,7 @@ function AuctionDetail() {
               <span className="flex items-center gap-1"><Calendar className="h-4 w-4" />{format(new Date(a.scheduled_at), "PPP p")}</span>
               <span className="flex items-center gap-1"><Coins className="h-4 w-4" />Budget {a.team_budget.toLocaleString()}</span>
               <span className="flex items-center gap-1"><Gavel className="h-4 w-4" />Baseline {a.baseline_price.toLocaleString()}</span>
+              <span className="rounded bg-muted px-2 py-0.5 font-semibold capitalize">{a.method}</span>
               <span className="flex items-center gap-1"><Users className="h-4 w-4" />Squad min {a.min_players_per_team} · max {a.max_players_per_team}</span>
             </div>
           </div>
@@ -196,6 +209,8 @@ function AuctionDetail() {
           auction={a}
           teams={teamsQ.data ?? []}
           isAdmin={isAdmin}
+          isController={isController}
+          isOffline={isOffline}
           userId={user?.id ?? null}
         />
       )}
@@ -208,6 +223,8 @@ function AuctionDetail() {
           lastFinalizedAp={lastFinalizedAp}
           teams={teamsQ.data ?? []}
           isAdmin={isAdmin}
+          isController={isController}
+          isOffline={isOffline}
           userId={user?.id ?? null}
         />
       )}
@@ -295,12 +312,14 @@ function AuctionDetail() {
 type AuctionRow = NonNullable<ReturnType<typeof useQuery<{ id: string }>>["data"]>;
 
 function LobbyRoom({
-  auctionId, auction, teams, isAdmin, userId,
+  auctionId, auction, teams, isAdmin, isController, isOffline, userId,
 }: {
   auctionId: string;
   auction: any;
   teams: any[];
   isAdmin: boolean;
+  isController: boolean;
+  isOffline: boolean;
   userId: string | null;
 }) {
   const qc = useQueryClient();
@@ -457,7 +476,7 @@ function LobbyRoom({
         </div>
       )}
 
-      <div className="rounded-lg border border-border bg-background/60 p-3">
+      {!isOffline && <div className="rounded-lg border border-border bg-background/60 p-3">
         <p className="mb-2 text-[10px] uppercase tracking-widest text-muted-foreground font-bold">
           Team managers joined — {joinedCount} / {totalTeams}
         </p>
@@ -488,9 +507,9 @@ function LobbyRoom({
             );
           })}
         </div>
-      </div>
+      </div>}
 
-      {isAdmin && (
+      {isAdmin && !isOffline && (
         <div className="rounded-lg border border-border bg-background/60 p-3 flex items-center gap-3">
           <Timer className="h-4 w-4 text-muted-foreground" />
           <label className="text-xs font-medium text-muted-foreground">Round timer</label>
@@ -514,18 +533,18 @@ function LobbyRoom({
         </div>
       )}
 
-      {isAdmin && (
+      {isController && (
         <div className="space-y-2">
           <Button className="w-full h-12 text-base font-bold" onClick={() => goLive.mutate()} disabled={goLive.isPending}>
             <Play className="h-4 w-4 mr-2" /> Start bidding
           </Button>
-          <p className="text-[11px] text-muted-foreground text-center">
+          {!isOffline && <p className="text-[11px] text-muted-foreground text-center">
             {joinedCount} of {totalTeams} team manager{totalTeams === 1 ? "" : "s"} joined — others can still join after bidding starts.
-          </p>
+          </p>}
         </div>
       )}
 
-      {!isAdmin && myTeamIds.length === 0 && (
+      {!isOffline && !isAdmin && myTeamIds.length === 0 && (
         <p className="text-xs text-muted-foreground text-center">You're spectating — only team managers count toward the join check.</p>
       )}
     </div>
@@ -533,7 +552,7 @@ function LobbyRoom({
 }
 
 function LiveRoom({
-  auctionId, auction, currentAp, lastFinalizedAp, teams, isAdmin, userId,
+  auctionId, auction, currentAp, lastFinalizedAp, teams, isAdmin, isController, isOffline, userId,
 }: {
   auctionId: string;
   auction: any;
@@ -541,6 +560,8 @@ function LiveRoom({
   lastFinalizedAp: any;
   teams: any[];
   isAdmin: boolean;
+  isController: boolean;
+  isOffline: boolean;
   userId: string | null;
 }) {
   const qc = useQueryClient();
@@ -572,9 +593,10 @@ function LiveRoom({
   });
 
   const myTeams = useMemo(() => {
+    if (isOffline) return [];
     const mine = new Set(membershipsQ.data ?? []);
     return teams.filter((t) => mine.has(t.team?.id));
-  }, [teams, membershipsQ.data]);
+  }, [teams, membershipsQ.data, isOffline]);
 
   const [selectedTeam, setSelectedTeam] = useState<string | null>(null);
   useEffect(() => {
@@ -686,7 +708,25 @@ function LiveRoom({
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["auction", auctionId] });
       qc.invalidateQueries({ queryKey: ["auction-players", auctionId] });
+      qc.invalidateQueries({ queryKey: ["live-bids", auctionId] });
     },
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const offlineBid = useMutation({
+    mutationFn: async (teamId: string) => {
+      if (!currentAp) throw new Error("No player is live");
+      const { error } = await supabase.rpc("place_bid_for_team", { _auction_player_id: currentAp.id, _team_id: teamId });
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["live-bids", auctionId] }),
+    onError: (e: Error) => toast.error(e.message),
+  });
+  const undoBid = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.rpc("undo_last_bid", { _auction_id: auctionId });
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["live-bids", auctionId] }),
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -695,7 +735,7 @@ function LiveRoom({
       <IntermissionRoom
         auctionId={auctionId}
         lastFinalizedAp={lastFinalizedAp}
-        isAdmin={isAdmin}
+        isController={isController}
         onNext={() => next.mutate()}
         nextPending={next.isPending}
       />
@@ -767,7 +807,7 @@ function LiveRoom({
 
       {/* Sticky bid panel — pinned to bottom of viewport so users never have to scroll for bid actions */}
         <div className="sticky bottom-2 z-30 space-y-2">
-        <div className={`rounded-xl border border-primary/40 bg-card/95 backdrop-blur shadow-lg p-3 grid gap-3 ${myTeams.length === 0 ? "grid-cols-3" : "grid-cols-1"}`}>
+        <div className={`rounded-xl border border-primary/40 bg-card/95 backdrop-blur shadow-lg p-3 grid gap-3 ${myTeams.length === 0 ? (isOffline ? "grid-cols-2" : "grid-cols-3") : "grid-cols-1"}`}>
           <div className="rounded-lg bg-background/60 p-2 min-w-0">
             <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Current bid</p>
             <p className="text-base sm:text-xl font-extrabold break-words leading-tight line-clamp-2">{highBid ? highBid.team?.name : "No bids yet"}</p>
@@ -780,7 +820,7 @@ function LiveRoom({
                 <p className="text-xl sm:text-2xl font-extrabold tabular-nums leading-tight">{nextAmount.toLocaleString()}</p>
                 <p className="text-xs text-muted-foreground">+{(nextAmount - (highBid?.amount ?? auction.baseline_price)).toLocaleString()}</p>
               </div>
-              {remaining != null && (
+              {!isOffline && remaining != null && (
                 <div className={`rounded-lg bg-background/60 p-2 min-w-1 ${bigTimer ? (expired ? "" : "animate-pulse") : ""}`}>
                   <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Time left</p>
                   <p className={`text-xl sm:text-2xl font-extrabold tabular-nums leading-tight ${bigTimer && !expired ? "text-destructive" : ""}`}>{remaining}s</p>
@@ -841,9 +881,55 @@ function LiveRoom({
             </div>
           </div>
         )}
+        {isOffline && isController && (
+          <div className="rounded-xl border border-primary/40 bg-card/95 shadow-lg p-3 space-y-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {teams.map((at) => {
+                const teamId = at.team?.id as string;
+                const playersAfterBid = at.players_bought + 1;
+                const reserve = Math.max(0, minPlayers - playersAfterBid) * baseline;
+                const alreadyLeading = highBid?.team?.id === teamId;
+                const full = at.players_bought >= maxPlayers;
+                const short = at.budget_remaining < nextAmount;
+                const reserveBlocked = at.budget_remaining - nextAmount < reserve;
+                const disabled = alreadyLeading || full || short || reserveBlocked || offlineBid.isPending;
+                const reason = alreadyLeading ? "Leading" : full ? "Squad full" : short ? "No budget" : reserveBlocked ? "Reserve needed" : null;
+                return (
+                  <Button
+                    key={at.id}
+                    variant="outline"
+                    className="h-16 justify-start gap-2 px-3"
+                    disabled={disabled}
+                    title={reason ?? `Bid ${nextAmount.toLocaleString()} for ${at.team?.name}`}
+                    onClick={() => offlineBid.mutate(teamId)}
+                  >
+                    <span className="h-9 w-9 shrink-0 overflow-hidden rounded bg-muted flex items-center justify-center text-xs font-bold">
+                      {at.team?.logo_url ? <img src={at.team.logo_url} alt="" className="h-full w-full object-cover" /> : at.team?.name?.slice(0, 2).toUpperCase()}
+                    </span>
+                    <span className="min-w-0 text-left">
+                      <span className="block whitespace-normal break-words leading-tight">{at.team?.name}</span>
+                      {reason && <span className="block text-[10px] text-muted-foreground">{reason}</span>}
+                    </span>
+                  </Button>
+                );
+              })}
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              <Button variant="outline" onClick={() => undoBid.mutate()} disabled={!highBid || undoBid.isPending}>
+                <Undo2 className="h-4 w-4 mr-1" /> Undo
+              </Button>
+              <Button variant="outline" onClick={() => resetBid.mutate()} disabled={!highBid || resetBid.isPending}>
+                <Eraser className="h-4 w-4 mr-1" /> Reset
+              </Button>
+              <Button onClick={() => finalize.mutate()} disabled={finalize.isPending}>
+                <Gavel className="h-4 w-4 mr-1" /> Sold
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
 
-      {isAdmin && (
+      {isAdmin && !isOffline && (
         <div className="space-y-2">
           <div className="grid grid-cols-2 gap-2">
             {isPaused ? (
@@ -904,11 +990,11 @@ function PreviousBidHistory({ auctionPlayerId, player }: { auctionPlayerId: stri
 }
 
 function IntermissionRoom({
-  auctionId, isAdmin, onNext, nextPending,
+  auctionId, isController, onNext, nextPending,
 }: {
   auctionId: string;
   lastFinalizedAp?: any;
-  isAdmin: boolean;
+  isController: boolean;
   onNext: () => void;
   nextPending: boolean;
 }) {
@@ -969,7 +1055,7 @@ function IntermissionRoom({
         </div>
       )}
 
-      {isAdmin && (
+      {isController && (
         <div className="text-center">
           <Button size="lg" onClick={onNext} disabled={nextPending}>
             <ChevronsRight className="h-4 w-4 mr-1" />

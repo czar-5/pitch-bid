@@ -9,6 +9,16 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/_authenticated/players_/import")({
+  head: () => ({
+    meta: [
+      { title: "Import Players | PitchBid" },
+      { name: "description", content: "Import player records and photos into PitchBid." },
+      { property: "og:title", content: "Import Players | PitchBid" },
+      { property: "og:description", content: "Import player records and photos into PitchBid." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
   component: BulkImportPage,
 });
 

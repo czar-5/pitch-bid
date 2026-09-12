@@ -28,6 +28,16 @@ import {
 import { TeamFormDialog } from "@/components/admin/TeamFormDialog";
 
 export const Route = createFileRoute("/_authenticated/teams_/$teamId")({
+  head: () => ({
+    meta: [
+      { title: "Team Details | PitchBid" },
+      { name: "description", content: "View team managers, auction budgets, and player squads." },
+      { property: "og:title", content: "Team Details | PitchBid" },
+      { property: "og:description", content: "View team managers, auction budgets, and player squads." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
   component: TeamDetail,
 });
 

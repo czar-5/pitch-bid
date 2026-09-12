@@ -12,6 +12,16 @@ import {
 } from "@/components/ui/alert-dialog";
 
 export const Route = createFileRoute("/_authenticated/teams")({
+  head: () => ({
+    meta: [
+      { title: "Teams | PitchBid" },
+      { name: "description", content: "Browse cricket teams, managers, budgets, and auction squads." },
+      { property: "og:title", content: "Teams | PitchBid" },
+      { property: "og:description", content: "Browse cricket teams, managers, budgets, and auction squads." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
   component: TeamsPage,
 });
 

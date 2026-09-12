@@ -13,12 +13,23 @@ import {
 } from "@/components/ui/alert-dialog";
 
 export const Route = createFileRoute("/_authenticated/auctions")({
+  head: () => ({
+    meta: [
+      { title: "Auctions | PitchBid" },
+      { name: "description", content: "Browse upcoming, live, and completed cricket player auctions." },
+      { property: "og:title", content: "Auctions | PitchBid" },
+      { property: "og:description", content: "Browse upcoming, live, and completed cricket player auctions." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
   component: AuctionsPage,
 });
 
 type Auction = {
   id: string; name: string; scheduled_at: string;
   status: "upcoming" | "live" | "paused" | "completed" | "archived";
+  method: "online" | "offline";
   team_budget: number;
 };
 
@@ -48,7 +59,7 @@ function AuctionsPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("auctions")
-        .select("id,name,scheduled_at,status,team_budget,auction_teams(count)")
+        .select("id,name,scheduled_at,status,method,team_budget,auction_teams(count)")
         .order("scheduled_at", { ascending: false });
       if (error) throw error;
       return data as unknown as (Auction & { auction_teams: { count: number }[] })[];
@@ -115,6 +126,7 @@ function Section({
               </div>
               <div className="mt-3 flex items-center gap-3 text-xs text-muted-foreground">
                 <span className="flex items-center gap-1"><Calendar className="h-3.5 w-3.5" />{format(new Date(a.scheduled_at), "MMM d, p")}</span>
+                <span className="rounded bg-muted px-1.5 py-0.5 font-semibold capitalize">{a.method}</span>
                 <span className="flex items-center gap-1"><Users className="h-3.5 w-3.5" />{a.auction_teams?.[0]?.count ?? 0} teams</span>
               </div>
             </Link>
