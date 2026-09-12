@@ -280,11 +280,15 @@ export function AuctionWizardDialog({ trigger, auctionId }: { trigger: React.Rea
   });
 
   function canAdvance() {
-    if (step === 0) return state.name.trim().length > 0 && !!state.scheduledDate;
+    if (step === 0) return (
+      state.name.trim().length > 0 &&
+      !!state.scheduledDate &&
+      (state.method === "online" || state.auctioneerEmail.trim().length > 0)
+    );
     if (step === 1) return (
       state.team_budget > 0 &&
       state.baseline_price > 0 &&
-      state.round_closure_seconds > 0 &&
+      (state.method === "offline" || state.round_closure_seconds > 0) &&
       state.min_players_per_team >= 0 &&
       state.max_players_per_team >= 1 &&
       state.min_players_per_team <= state.max_players_per_team
