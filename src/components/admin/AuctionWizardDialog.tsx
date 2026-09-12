@@ -123,6 +123,8 @@ export function AuctionWizardDialog({ trigger, auctionId }: { trigger: React.Rea
     }
     setState({
       name: auction.name,
+      method: (((auction as any).method as AuctionMethod) ?? "online"),
+      auctioneerEmail: auctioneerEmail ?? "",
       scheduledDate: scheduled,
       scheduledTime: `${String(scheduled.getHours()).padStart(2, "0")}:${String(scheduled.getMinutes()).padStart(2, "0")}`,
       team_budget: auction.team_budget,
