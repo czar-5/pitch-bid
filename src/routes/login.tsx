@@ -11,6 +11,16 @@ import { Trophy } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/login")({
+  head: () => ({
+    meta: [
+      { title: "Sign In | PitchBid" },
+      { name: "description", content: "Sign in to manage teams and participate in PitchBid player auctions." },
+      { property: "og:title", content: "Sign In | PitchBid" },
+      { property: "og:description", content: "Sign in to manage teams and participate in PitchBid player auctions." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
   component: LoginPage,
 });
 

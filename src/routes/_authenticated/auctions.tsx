@@ -13,6 +13,16 @@ import {
 } from "@/components/ui/alert-dialog";
 
 export const Route = createFileRoute("/_authenticated/auctions")({
+  head: () => ({
+    meta: [
+      { title: "Auctions | PitchBid" },
+      { name: "description", content: "Browse upcoming, live, and completed cricket player auctions." },
+      { property: "og:title", content: "Auctions | PitchBid" },
+      { property: "og:description", content: "Browse upcoming, live, and completed cricket player auctions." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
   component: AuctionsPage,
 });
 

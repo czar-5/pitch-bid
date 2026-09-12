@@ -10,6 +10,16 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/_authenticated/profile")({
+  head: () => ({
+    meta: [
+      { title: "Profile | PitchBid" },
+      { name: "description", content: "View your PitchBid account and auction permissions." },
+      { property: "og:title", content: "Profile | PitchBid" },
+      { property: "og:description", content: "View your PitchBid account and auction permissions." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
   component: ProfilePage,
 });
 

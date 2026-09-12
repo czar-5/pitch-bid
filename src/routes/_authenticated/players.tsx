@@ -16,6 +16,16 @@ import {
 } from "@/components/ui/alert-dialog";
 
 export const Route = createFileRoute("/_authenticated/players")({
+  head: () => ({
+    meta: [
+      { title: "Players | PitchBid" },
+      { name: "description", content: "Browse cricket player profiles and performance statistics." },
+      { property: "og:title", content: "Players | PitchBid" },
+      { property: "og:description", content: "Browse cricket player profiles and performance statistics." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
+    ],
+  }),
   component: PlayersPage,
 });
 
