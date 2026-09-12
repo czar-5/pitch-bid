@@ -94,7 +94,13 @@ export function AuctionWizardDialog({ trigger, auctionId }: { trigger: React.Rea
       if (a.error) throw a.error;
       if (at.error) throw at.error;
       if (ap.error) throw ap.error;
-      return { auction: a.data, teams: at.data, players: ap.data };
+      let auctioneerEmail = "";
+      const auctioneerId = (a.data as any).auctioneer_user_id as string | null;
+      if (auctioneerId) {
+        const { data: emails } = await supabase.rpc("admin_get_user_emails", { _ids: [auctioneerId] });
+        auctioneerEmail = (emails as any[])?.[0]?.email ?? "";
+      }
+      return { auction: a.data, teams: at.data, players: ap.data, auctioneerEmail };
     },
   });
 
