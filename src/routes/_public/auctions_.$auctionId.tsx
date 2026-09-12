@@ -67,6 +67,20 @@ function AuctionDetail() {
     },
   });
 
+  const controllerQ = useQuery({
+    queryKey: ["auction-controller", auctionId, user?.id],
+    enabled: !!user?.id,
+    queryFn: async () => {
+      if (!user?.id) return false;
+      const { data, error } = await supabase.rpc("is_auction_controller", {
+        _auction_id: auctionId,
+        _user_id: user.id,
+      });
+      if (error) throw error;
+      return data === true;
+    },
+  });
+
   // Realtime: refresh on changes
   useEffect(() => {
     const ch = supabase
@@ -123,8 +137,8 @@ function AuctionDetail() {
   const status = a.status as string;
   const isLive = status === "live";
   const isLobby = status === "lobby";
-  const isOffline = a.method === "offline";
-  const isController = isAdmin || (!!user?.id && a.auctioneer_user_id === user.id);
+  const isOffline = String(a.method).toLowerCase() === "offline";
+  const isController = isAdmin || controllerQ.data === true || (!!user?.id && a.auctioneer_user_id === user.id);
   const currentAp = playersQ.data?.find((p) => p.id === a.current_player_id) ?? null;
   const lastFinalizedAp = (a as { last_finalized_player_id?: string | null }).last_finalized_player_id
     ? playersQ.data?.find((p) => p.id === (a as { last_finalized_player_id?: string | null }).last_finalized_player_id) ?? null
@@ -323,6 +337,7 @@ function LobbyRoom({
   userId: string | null;
 }) {
   const qc = useQueryClient();
+  const offlineLobby = isOffline || String(auction.method).toLowerCase() === "offline";
 
   const nextPlayerQ = useQuery({
     queryKey: ["next-player", auctionId],
@@ -347,7 +362,7 @@ function LobbyRoom({
   // which teams does this user manage?
   const membershipsQ = useQuery({
     queryKey: ["my-memberships", userId],
-    enabled: !!userId,
+    enabled: !!userId && !offlineLobby,
     queryFn: async () => {
       const { data, error } = await supabase.from("team_members").select("team_id").eq("user_id", userId!);
       if (error) throw error;
@@ -364,7 +379,10 @@ function LobbyRoom({
   const [joinedTeamIds, setJoinedTeamIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    if (!userId) return;
+    if (!userId || offlineLobby) {
+      setJoinedTeamIds(new Set());
+      return;
+    }
     const channel = supabase.channel(`auction-lobby-${auctionId}`, {
       config: { presence: { key: userId } },
     });
@@ -391,7 +409,7 @@ function LobbyRoom({
       });
 
     return () => { supabase.removeChannel(channel); };
-  }, [auctionId, userId, isAdmin, myTeamIds.join(",")]);
+  }, [auctionId, userId, isAdmin, offlineLobby, myTeamIds.join(",")]);
 
   const totalTeams = teams.length;
   const joinedCount = teams.filter((t) => joinedTeamIds.has(t.team?.id)).length;
@@ -476,7 +494,7 @@ function LobbyRoom({
         </div>
       )}
 
-      {!isOffline && <div className="rounded-lg border border-border bg-background/60 p-3">
+      {!offlineLobby && <div className="rounded-lg border border-border bg-background/60 p-3">
         <p className="mb-2 text-[10px] uppercase tracking-widest text-muted-foreground font-bold">
           Team managers joined — {joinedCount} / {totalTeams}
         </p>
@@ -509,7 +527,7 @@ function LobbyRoom({
         </div>
       </div>}
 
-      {isAdmin && !isOffline && (
+      {isAdmin && !offlineLobby && (
         <div className="rounded-lg border border-border bg-background/60 p-3 flex items-center gap-3">
           <Timer className="h-4 w-4 text-muted-foreground" />
           <label className="text-xs font-medium text-muted-foreground">Round timer</label>
@@ -538,13 +556,13 @@ function LobbyRoom({
           <Button className="w-full h-12 text-base font-bold" onClick={() => goLive.mutate()} disabled={goLive.isPending}>
             <Play className="h-4 w-4 mr-2" /> Start bidding
           </Button>
-          {!isOffline && <p className="text-[11px] text-muted-foreground text-center">
+          {!offlineLobby && <p className="text-[11px] text-muted-foreground text-center">
             {joinedCount} of {totalTeams} team manager{totalTeams === 1 ? "" : "s"} joined — others can still join after bidding starts.
           </p>}
         </div>
       )}
 
-      {!isOffline && !isAdmin && myTeamIds.length === 0 && (
+      {!offlineLobby && !isAdmin && myTeamIds.length === 0 && (
         <p className="text-xs text-muted-foreground text-center">You're spectating — only team managers count toward the join check.</p>
       )}
     </div>
@@ -766,6 +784,7 @@ function LiveRoom({
 
   return (
     <div className="space-y-4">
+      {!(isOffline && isController) && (
       <div className="rounded-xl border border-primary/40 bg-gradient-to-br from-primary/15 to-card p-5 space-y-4">
         <div className="flex flex-row items-start gap-4">
           <div className="h-32 w-32 sm:h-48 sm:w-48 rounded-xl bg-muted overflow-hidden flex-shrink-0 aspect-square">
@@ -804,6 +823,7 @@ function LiveRoom({
           ))}
         </div>
       </div>
+      )}
 
       {/* Sticky bid panel — pinned to bottom of viewport so users never have to scroll for bid actions */}
         <div className="sticky bottom-2 z-30 space-y-2">
@@ -922,7 +942,7 @@ function LiveRoom({
                 <Eraser className="h-4 w-4 mr-1" /> Reset
               </Button>
               <Button onClick={() => finalize.mutate()} disabled={finalize.isPending}>
-                <Gavel className="h-4 w-4 mr-1" /> Sold
+                <Gavel className="h-4 w-4 mr-1" /> {highBid ? "Sold" : "Unsold"}
               </Button>
             </div>
           </div>
@@ -954,7 +974,31 @@ function LiveRoom({
           </Button>
         </div>
       )}
+
+      {isOffline && !isController && (
+        <LiveBidHistory bids={bidsQ.data ?? []} />
+      )}
     </div>
+  );
+}
+
+function LiveBidHistory({ bids }: { bids: Array<any> }) {
+  return (
+    <section>
+      <h2 className="mb-3 text-sm font-bold uppercase tracking-widest text-muted-foreground">
+        Live bid history
+      </h2>
+      <div className="rounded-xl border border-border bg-card divide-y divide-border">
+        {bids.length ? bids.map((bid) => (
+          <div key={bid.id} className="flex items-center justify-between gap-3 px-4 py-2 text-sm">
+            <span className="min-w-0 break-words font-medium">{bid.team?.name}</span>
+            <span className="shrink-0 font-mono font-semibold tabular-nums">{bid.amount.toLocaleString()}</span>
+          </div>
+        )) : (
+          <p className="px-4 py-3 text-xs text-muted-foreground">No bids yet.</p>
+        )}
+      </div>
+    </section>
   );
 }
 
