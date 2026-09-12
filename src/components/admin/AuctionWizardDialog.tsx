@@ -106,7 +106,7 @@ export function AuctionWizardDialog({ trigger, auctionId }: { trigger: React.Rea
 
   useEffect(() => {
     if (!open || !isEdit || !existingQ.data) return;
-    const { auction, teams, players } = existingQ.data;
+    const { auction, teams, players, auctioneerEmail } = existingQ.data;
     const scheduled = new Date(auction.scheduled_at);
     const rules = (auction.bid_rules_json as BidRule[] | null) ?? DEFAULT_BID_RULES;
     const captains: Record<string, string | null> = {};
