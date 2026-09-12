@@ -374,17 +374,16 @@ function StepBasics({ state, setState }: { state: WizardState; setState: Setter 
         <Label>Method</Label>
         <div className="mt-1 inline-flex rounded-lg border border-border p-1">
           {(["online", "offline"] as const).map((m) => (
-            <button
+            <Button
               key={m}
               type="button"
+              variant={state.method === m ? "default" : "ghost"}
+              size="sm"
               onClick={() => setState((s) => ({ ...s, method: m }))}
-              className={cn(
-                "px-4 py-1.5 text-sm font-semibold rounded-md capitalize transition",
-                state.method === m ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground",
-              )}
+              className="capitalize"
             >
               {m}
-            </button>
+            </Button>
           ))}
         </div>
         <p className="mt-1 text-xs text-muted-foreground">
@@ -448,10 +447,12 @@ function StepMoney({ state, setState }: { state: WizardState; setState: Setter }
   }
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-3 gap-3">
+      <div className={cn("grid gap-3", state.method === "online" ? "grid-cols-3" : "grid-cols-2")}>
         <div><Label>Team budget</Label><Input type="number" className={NO_SPIN} value={state.team_budget} onChange={(e) => setState((s) => ({ ...s, team_budget: Number(e.target.value) }))} /></div>
         <div><Label>Baseline price</Label><Input type="number" className={NO_SPIN} value={state.baseline_price} onChange={(e) => setState((s) => ({ ...s, baseline_price: Number(e.target.value) }))} /></div>
-        <div><Label>Round closure (sec)</Label><Input type="number" className={NO_SPIN} value={state.round_closure_seconds} onChange={(e) => setState((s) => ({ ...s, round_closure_seconds: Number(e.target.value) }))} /></div>
+        {state.method === "online" && (
+          <div><Label>Round closure (sec)</Label><Input type="number" className={NO_SPIN} value={state.round_closure_seconds} onChange={(e) => setState((s) => ({ ...s, round_closure_seconds: Number(e.target.value) }))} /></div>
+        )}
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div><Label>Min players / team</Label><Input type="number" className={NO_SPIN} value={state.min_players_per_team} onChange={(e) => setState((s) => ({ ...s, min_players_per_team: Number(e.target.value) }))} /></div>
@@ -587,10 +588,12 @@ function StepReview({ state, teams, players }: { state: WizardState; teams: Team
   return (
     <div className="space-y-3 text-sm">
       <Row label="Name" value={state.name} />
+      <Row label="Method" value={state.method === "offline" ? "Offline" : "Online"} />
+      {state.method === "offline" && <Row label="Auctioneer" value={state.auctioneerEmail} />}
       <Row label="Scheduled" value={state.scheduledDate ? `${format(state.scheduledDate, "PPP")} at ${state.scheduledTime}` : "—"} />
       <Row label="Team budget" value={state.team_budget.toLocaleString()} />
       <Row label="Baseline" value={state.baseline_price.toLocaleString()} />
-      <Row label="Round closure" value={`${state.round_closure_seconds}s`} />
+      {state.method === "online" && <Row label="Round closure" value={`${state.round_closure_seconds}s`} />}
       <Row label="Squad size" value={`min ${state.min_players_per_team} · max ${state.max_players_per_team}`} />
       <Row label="Bid rules" value={`${state.bid_rules.length} tiers`} />
       <Row label="Teams" value={`${teamNames.length} · ${teamNames.slice(0, 4).join(", ")}${teamNames.length > 4 ? "…" : ""}`} />
