@@ -708,6 +708,7 @@ function LiveRoom({
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["auction", auctionId] });
       qc.invalidateQueries({ queryKey: ["auction-players", auctionId] });
+      qc.invalidateQueries({ queryKey: ["live-bids", auctionId] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -734,7 +735,6 @@ function LiveRoom({
       <IntermissionRoom
         auctionId={auctionId}
         lastFinalizedAp={lastFinalizedAp}
-        isAdmin={isAdmin}
         isController={isController}
         onNext={() => next.mutate()}
         nextPending={next.isPending}
@@ -990,11 +990,10 @@ function PreviousBidHistory({ auctionPlayerId, player }: { auctionPlayerId: stri
 }
 
 function IntermissionRoom({
-  auctionId, isAdmin, isController, onNext, nextPending,
+  auctionId, isController, onNext, nextPending,
 }: {
   auctionId: string;
   lastFinalizedAp?: any;
-  isAdmin: boolean;
   isController: boolean;
   onNext: () => void;
   nextPending: boolean;
