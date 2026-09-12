@@ -168,12 +168,24 @@ export function AuctionWizardDialog({ trigger, auctionId }: { trigger: React.Rea
       const scheduled = new Date(state.scheduledDate);
       scheduled.setHours(hh, mm, 0, 0);
 
+      let auctioneerUserId: string | null = null;
+      if (state.method === "offline") {
+        const email = state.auctioneerEmail.trim().toLowerCase();
+        if (!email) throw new Error("Enter the auctioneer's email");
+        const { data: found, error: findErr } = await supabase.rpc("admin_find_user_by_email", { _email: email });
+        if (findErr) throw findErr;
+        if (!found) throw new Error(`No user found with email ${email}. They must sign up first.`);
+        auctioneerUserId = found as string;
+      }
+
       const payload = {
         name: state.name,
+        method: state.method,
+        auctioneer_user_id: auctioneerUserId,
         scheduled_at: scheduled.toISOString(),
         team_budget: state.team_budget,
         baseline_price: state.baseline_price,
-        round_closure_seconds: state.round_closure_seconds,
+        round_closure_seconds: state.method === "offline" ? 0 : state.round_closure_seconds,
         min_players_per_team: state.min_players_per_team,
         max_players_per_team: state.max_players_per_team,
         bid_rules_json: state.bid_rules.map((r, i, arr) => ({
@@ -181,7 +193,7 @@ export function AuctionWizardDialog({ trigger, auctionId }: { trigger: React.Rea
           max: r.max,
           increment: r.increment,
         })),
-      };
+      } as any;
 
       let savedId: string;
       if (isEdit && auctionId) {
