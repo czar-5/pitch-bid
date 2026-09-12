@@ -57,6 +57,8 @@ export function AuctionWizardDialog({ trigger, auctionId }: { trigger: React.Rea
   function initial(): WizardState {
     return {
       name: "",
+      method: "online",
+      auctioneerEmail: "",
       scheduledDate: undefined,
       scheduledTime: "19:00",
       team_budget: 100000,
