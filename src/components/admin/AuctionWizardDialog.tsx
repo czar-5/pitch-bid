@@ -17,8 +17,12 @@ import { cn } from "@/lib/utils";
 
 type BidRule = { min: number; max: number | null; increment: number };
 
+type AuctionMethod = "online" | "offline";
+
 type WizardState = {
   name: string;
+  method: AuctionMethod;
+  auctioneerEmail: string;
   scheduledDate: Date | undefined;
   scheduledTime: string;
   team_budget: number;
@@ -53,6 +57,8 @@ export function AuctionWizardDialog({ trigger, auctionId }: { trigger: React.Rea
   function initial(): WizardState {
     return {
       name: "",
+      method: "online",
+      auctioneerEmail: "",
       scheduledDate: undefined,
       scheduledTime: "19:00",
       team_budget: 100000,
@@ -88,13 +94,19 @@ export function AuctionWizardDialog({ trigger, auctionId }: { trigger: React.Rea
       if (a.error) throw a.error;
       if (at.error) throw at.error;
       if (ap.error) throw ap.error;
-      return { auction: a.data, teams: at.data, players: ap.data };
+      let auctioneerEmail = "";
+      const auctioneerId = (a.data as any).auctioneer_user_id as string | null;
+      if (auctioneerId) {
+        const { data: emails } = await supabase.rpc("admin_get_user_emails", { _ids: [auctioneerId] });
+        auctioneerEmail = (emails as any[])?.[0]?.email ?? "";
+      }
+      return { auction: a.data, teams: at.data, players: ap.data, auctioneerEmail };
     },
   });
 
   useEffect(() => {
     if (!open || !isEdit || !existingQ.data) return;
-    const { auction, teams, players } = existingQ.data;
+    const { auction, teams, players, auctioneerEmail } = existingQ.data;
     const scheduled = new Date(auction.scheduled_at);
     const rules = (auction.bid_rules_json as BidRule[] | null) ?? DEFAULT_BID_RULES;
     const captains: Record<string, string | null> = {};
@@ -111,6 +123,8 @@ export function AuctionWizardDialog({ trigger, auctionId }: { trigger: React.Rea
     }
     setState({
       name: auction.name,
+      method: (((auction as any).method as AuctionMethod) ?? "online"),
+      auctioneerEmail: auctioneerEmail ?? "",
       scheduledDate: scheduled,
       scheduledTime: `${String(scheduled.getHours()).padStart(2, "0")}:${String(scheduled.getMinutes()).padStart(2, "0")}`,
       team_budget: auction.team_budget,
@@ -154,12 +168,24 @@ export function AuctionWizardDialog({ trigger, auctionId }: { trigger: React.Rea
       const scheduled = new Date(state.scheduledDate);
       scheduled.setHours(hh, mm, 0, 0);
 
+      let auctioneerUserId: string | null = null;
+      if (state.method === "offline") {
+        const email = state.auctioneerEmail.trim().toLowerCase();
+        if (!email) throw new Error("Enter the auctioneer's email");
+        const { data: found, error: findErr } = await supabase.rpc("admin_find_user_by_email", { _email: email });
+        if (findErr) throw findErr;
+        if (!found) throw new Error(`No user found with email ${email}. They must sign up first.`);
+        auctioneerUserId = found as string;
+      }
+
       const payload = {
         name: state.name,
+        method: state.method,
+        auctioneer_user_id: auctioneerUserId,
         scheduled_at: scheduled.toISOString(),
         team_budget: state.team_budget,
         baseline_price: state.baseline_price,
-        round_closure_seconds: state.round_closure_seconds,
+        round_closure_seconds: state.method === "offline" ? 0 : state.round_closure_seconds,
         min_players_per_team: state.min_players_per_team,
         max_players_per_team: state.max_players_per_team,
         bid_rules_json: state.bid_rules.map((r, i, arr) => ({
@@ -167,7 +193,7 @@ export function AuctionWizardDialog({ trigger, auctionId }: { trigger: React.Rea
           max: r.max,
           increment: r.increment,
         })),
-      };
+      } as any;
 
       let savedId: string;
       if (isEdit && auctionId) {
@@ -254,11 +280,15 @@ export function AuctionWizardDialog({ trigger, auctionId }: { trigger: React.Rea
   });
 
   function canAdvance() {
-    if (step === 0) return state.name.trim().length > 0 && !!state.scheduledDate;
+    if (step === 0) return (
+      state.name.trim().length > 0 &&
+      !!state.scheduledDate &&
+      (state.method === "online" || state.auctioneerEmail.trim().length > 0)
+    );
     if (step === 1) return (
       state.team_budget > 0 &&
       state.baseline_price > 0 &&
-      state.round_closure_seconds > 0 &&
+      (state.method === "offline" || state.round_closure_seconds > 0) &&
       state.min_players_per_team >= 0 &&
       state.max_players_per_team >= 1 &&
       state.min_players_per_team <= state.max_players_per_team
@@ -340,6 +370,41 @@ function StepBasics({ state, setState }: { state: WizardState; setState: Setter 
         <Label>Auction name</Label>
         <Input value={state.name} onChange={(e) => setState((s) => ({ ...s, name: e.target.value }))} placeholder="IPL 2026 Mega Auction" />
       </div>
+      <div>
+        <Label>Method</Label>
+        <div className="mt-1 inline-flex rounded-lg border border-border p-1">
+          {(["online", "offline"] as const).map((m) => (
+            <button
+              key={m}
+              type="button"
+              onClick={() => setState((s) => ({ ...s, method: m }))}
+              className={cn(
+                "px-4 py-1.5 text-sm font-semibold rounded-md capitalize transition",
+                state.method === m ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {m}
+            </button>
+          ))}
+        </div>
+        <p className="mt-1 text-xs text-muted-foreground">
+          {state.method === "online"
+            ? "Each team manager bids from their own device, with a round timer."
+            : "One auctioneer runs the bidding in the room; no round timer."}
+        </p>
+      </div>
+      {state.method === "offline" && (
+        <div>
+          <Label>Auctioneer email</Label>
+          <Input
+            type="email"
+            value={state.auctioneerEmail}
+            onChange={(e) => setState((s) => ({ ...s, auctioneerEmail: e.target.value }))}
+            placeholder="auctioneer@example.com"
+          />
+          <p className="mt-1 text-xs text-muted-foreground">Must be someone who has already signed up. Only they (and admins) get the bidding controls.</p>
+        </div>
+      )}
       <div className="grid grid-cols-2 gap-3">
         <div>
           <Label>Date</Label>

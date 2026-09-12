@@ -138,6 +138,7 @@ export type Database = {
       }
       auctions: {
         Row: {
+          auctioneer_user_id: string | null
           baseline_price: number
           bid_rules_json: Json
           created_at: string
@@ -146,6 +147,7 @@ export type Database = {
           id: string
           last_finalized_player_id: string | null
           max_players_per_team: number
+          method: Database["public"]["Enums"]["auction_method"]
           min_players_per_team: number
           name: string
           round_closure_seconds: number
@@ -155,6 +157,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          auctioneer_user_id?: string | null
           baseline_price?: number
           bid_rules_json?: Json
           created_at?: string
@@ -163,6 +166,7 @@ export type Database = {
           id?: string
           last_finalized_player_id?: string | null
           max_players_per_team?: number
+          method?: Database["public"]["Enums"]["auction_method"]
           min_players_per_team?: number
           name: string
           round_closure_seconds?: number
@@ -172,6 +176,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          auctioneer_user_id?: string | null
           baseline_price?: number
           bid_rules_json?: Json
           created_at?: string
@@ -180,6 +185,7 @@ export type Database = {
           id?: string
           last_finalized_player_id?: string | null
           max_players_per_team?: number
+          method?: Database["public"]["Enums"]["auction_method"]
           min_players_per_team?: number
           name?: string
           round_closure_seconds?: number
@@ -423,9 +429,17 @@ export type Database = {
         Returns: boolean
       }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
+      is_auction_controller: {
+        Args: { _auction_id: string; _user_id: string }
+        Returns: boolean
+      }
       next_player: { Args: { _auction_id: string }; Returns: string }
       pause_round: { Args: { _auction_id: string }; Returns: undefined }
       place_bid: {
+        Args: { _auction_player_id: string; _team_id: string }
+        Returns: number
+      }
+      place_bid_for_team: {
         Args: { _auction_player_id: string; _team_id: string }
         Returns: number
       }
@@ -435,9 +449,11 @@ export type Database = {
       sell_current: { Args: { _auction_id: string }; Returns: undefined }
       skip_current: { Args: { _auction_id: string }; Returns: undefined }
       start_auction: { Args: { _auction_id: string }; Returns: undefined }
+      undo_last_bid: { Args: { _auction_id: string }; Returns: undefined }
     }
     Enums: {
       app_role: "admin" | "manager" | "co_manager" | "viewer"
+      auction_method: "online" | "offline"
       auction_player_status: "queued" | "live" | "sold" | "unsold" | "skipped"
       auction_status:
         | "upcoming"
@@ -583,6 +599,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "manager", "co_manager", "viewer"],
+      auction_method: ["online", "offline"],
       auction_player_status: ["queued", "live", "sold", "unsold", "skipped"],
       auction_status: [
         "upcoming",
