@@ -17,8 +17,12 @@ import { cn } from "@/lib/utils";
 
 type BidRule = { min: number; max: number | null; increment: number };
 
+type AuctionMethod = "online" | "offline";
+
 type WizardState = {
   name: string;
+  method: AuctionMethod;
+  auctioneerEmail: string;
   scheduledDate: Date | undefined;
   scheduledTime: string;
   team_budget: number;
