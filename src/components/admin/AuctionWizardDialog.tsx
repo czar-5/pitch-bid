@@ -370,6 +370,41 @@ function StepBasics({ state, setState }: { state: WizardState; setState: Setter 
         <Label>Auction name</Label>
         <Input value={state.name} onChange={(e) => setState((s) => ({ ...s, name: e.target.value }))} placeholder="IPL 2026 Mega Auction" />
       </div>
+      <div>
+        <Label>Method</Label>
+        <div className="mt-1 inline-flex rounded-lg border border-border p-1">
+          {(["online", "offline"] as const).map((m) => (
+            <button
+              key={m}
+              type="button"
+              onClick={() => setState((s) => ({ ...s, method: m }))}
+              className={cn(
+                "px-4 py-1.5 text-sm font-semibold rounded-md capitalize transition",
+                state.method === m ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {m}
+            </button>
+          ))}
+        </div>
+        <p className="mt-1 text-xs text-muted-foreground">
+          {state.method === "online"
+            ? "Each team manager bids from their own device, with a round timer."
+            : "One auctioneer runs the bidding in the room; no round timer."}
+        </p>
+      </div>
+      {state.method === "offline" && (
+        <div>
+          <Label>Auctioneer email</Label>
+          <Input
+            type="email"
+            value={state.auctioneerEmail}
+            onChange={(e) => setState((s) => ({ ...s, auctioneerEmail: e.target.value }))}
+            placeholder="auctioneer@example.com"
+          />
+          <p className="mt-1 text-xs text-muted-foreground">Must be someone who has already signed up. Only they (and admins) get the bidding controls.</p>
+        </div>
+      )}
       <div className="grid grid-cols-2 gap-3">
         <div>
           <Label>Date</Label>
