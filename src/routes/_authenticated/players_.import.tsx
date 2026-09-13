@@ -47,6 +47,7 @@ type Row = {
   raw: Record<string, string>;
   name: string;
   role: string;
+  malayali: "malayali" | "non_malayali" | null;
   batting_style: string;
   bowling_style: string;
   matches: number;
@@ -60,8 +61,8 @@ type Row = {
   error: string | null;
 };
 
-const TEMPLATE = `name,role,batting_style,bowling_style,matches,runs,wickets,bowling_economy,batting_avg,batting_sr,photo_filename,cric_heroes_link
-MS Dhoni,wicket_keeper,Right-hand bat,Right-arm medium,350,10773,1,0,38.09,87.56,dhoni.jpg,https://cricheroes.com/player/123
+const TEMPLATE = `name,role,malayali,batting_style,bowling_style,matches,runs,wickets,bowling_economy,batting_avg,batting_sr,photo_filename,cric_heroes_link
+MS Dhoni,wicket_keeper,Malayali,Right-hand bat,Right-arm medium,350,10773,1,0,38.09,87.56,dhoni.jpg,https://cricheroes.com/player/123
 `;
 
 function parseNumber(v: string | undefined): number {
@@ -168,6 +169,7 @@ function BulkImportPage() {
         const { error: insErr } = await supabase.from("players").insert({
           name: r.name,
           role: r.role as any,
+          malayali: r.malayali,
           batting_style: r.batting_style || null,
           bowling_style: r.bowling_style || null,
           matches: r.matches,
@@ -214,8 +216,9 @@ function BulkImportPage() {
           </Button>
         </div>
         <p className="text-xs text-muted-foreground">
-          Required headers: <code>name, role, batting_style, bowling_style, matches, runs, wickets, bowling_economy, batting_avg, batting_sr, photo_filename, cric_heroes_link</code>.
+          Required headers: <code>name, role, malayali, batting_style, bowling_style, matches, runs, wickets, bowling_economy, batting_avg, batting_sr, photo_filename, cric_heroes_link</code>.
           Roles accepted: batter, bowler, allrounder, batting_allrounder, bowling_allrounder, wicket_keeper.
+          Malayali values accepted: Malayali, Non-Malayali, or blank.
         </p>
       </div>
 
@@ -259,6 +262,7 @@ function BulkImportPage() {
                   <th className="text-left p-2">Status</th>
                   <th className="text-left p-2">Name</th>
                   <th className="text-left p-2">Role</th>
+                  <th className="text-left p-2">Malayali</th>
                   <th className="text-left p-2">Photo</th>
                   <th className="text-left p-2">Issue</th>
                 </tr>
@@ -273,6 +277,7 @@ function BulkImportPage() {
                     </td>
                     <td className="p-2 font-medium">{r.name || <span className="text-muted-foreground italic">missing</span>}</td>
                     <td className="p-2 capitalize">{r.role?.replace(/_/g, " ")}</td>
+                    <td className="p-2">{r.malayali === "malayali" ? "Malayali" : r.malayali === "non_malayali" ? "Non-Malayali" : "—"}</td>
                     <td className="p-2 font-mono text-[10px]">
                       {r.photo_filename
                         ? (photos.has(r.photo_filename)
@@ -318,10 +323,17 @@ function validateRow(raw: Record<string, string>, photos: Map<string, Blob>): Ro
   const name = (raw.name ?? "").trim();
   const roleRaw = (raw.role ?? "").trim().toLowerCase();
   const role = ROLE_MAP[roleRaw] ?? "";
+  const malayaliRaw = (raw.malayali ?? "").trim().toLowerCase().replace(/[\s-]+/g, "_");
+  const malayali = malayaliRaw === "malayali"
+    ? "malayali" as const
+    : malayaliRaw === "non_malayali"
+      ? "non_malayali" as const
+      : null;
   const photo_filename = (raw.photo_filename ?? "").trim();
   const errors: string[] = [];
   if (!name) errors.push("name missing");
   if (!role) errors.push(`role invalid (${raw.role ?? ""})`);
+  if (malayaliRaw && !malayali) errors.push(`malayali invalid (${raw.malayali ?? ""})`);
   if (photo_filename && photos.size > 0 && !photos.has(photo_filename)) {
     errors.push("photo not in zip");
   }
@@ -329,6 +341,7 @@ function validateRow(raw: Record<string, string>, photos: Map<string, Blob>): Ro
     raw,
     name,
     role,
+    malayali,
     batting_style: (raw.batting_style ?? "").trim(),
     bowling_style: (raw.bowling_style ?? "").trim(),
     matches: parseNumber(raw.matches),

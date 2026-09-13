@@ -59,7 +59,7 @@ function AuctionDetail() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("auction_players")
-        .select("id,status,sold_price,sold_team_id,is_captain,is_icon,round_ends_at,paused_remaining_seconds,player:players(id,name,role,photo,batting_style,bowling_style,matches,runs,wickets,batting_avg,batting_sr,bowling_economy,cric_heroes_link)")
+        .select("id,status,sold_price,sold_team_id,is_captain,is_icon,round_ends_at,paused_remaining_seconds,player:players(id,name,role,malayali,photo,batting_style,bowling_style,matches,runs,wickets,batting_avg,batting_sr,bowling_economy,cric_heroes_link)")
         .eq("auction_id", auctionId)
         .order("name", { foreignTable: "players", ascending: true });
       if (error) throw error;
@@ -775,10 +775,26 @@ function LiveRoom({
   const nextN = selectedAt ? selectedAt.players_bought + 1 : 1;
   const reserveNeeded = Math.max(0, minPlayers - nextN) * baseline;
   const wouldBreakReserve = !!selectedAt && (selectedAt.budget_remaining - nextAmount) < reserveNeeded;
-  const bidBlocked = atMaxCap || wouldBreakReserve;
+  const quotaEnabled = auction.non_malayali_rule_enabled === true;
+  const quota = (auction.non_malayali_players_per_team as number) ?? 0;
+  const nonMalayaliCount = selectedTeam
+    ? (teams.find((t) => t.team?.id === selectedTeam) as any)?.non_malayali_bought ?? 0
+    : 0;
+  const remainingNonMalayali = Math.max(0, quota - nonMalayaliCount);
+  const slotsAfterBid = selectedAt ? maxPlayers - (selectedAt.players_bought + 1) : Infinity;
+  const unclassifiedBlocked = quotaEnabled && p?.malayali == null;
+  const quotaCeilingBlocked = quotaEnabled && p?.malayali === "non_malayali" && remainingNonMalayali === 0;
+  const quotaReserveBlocked = quotaEnabled && p?.malayali !== "non_malayali" && slotsAfterBid < remainingNonMalayali;
+  const bidBlocked = atMaxCap || wouldBreakReserve || unclassifiedBlocked || quotaCeilingBlocked || quotaReserveBlocked;
   const blockedReason = atMaxCap
     ? `Squad full (${maxPlayers} players)`
-    : wouldBreakReserve
+    : unclassifiedBlocked
+      ? "Player classification is blank"
+      : quotaCeilingBlocked
+        ? `Non-Malayali limit reached (${quota})`
+        : quotaReserveBlocked
+          ? `Must fill ${remainingNonMalayali} Non-Malayali place${remainingNonMalayali === 1 ? "" : "s"}`
+          : wouldBreakReserve
       ? `Reserve ${reserveNeeded.toLocaleString()} for ${Math.max(0, minPlayers - nextN)} more`
       : null;
 
@@ -912,8 +928,14 @@ function LiveRoom({
                 const full = at.players_bought >= maxPlayers;
                 const short = at.budget_remaining < nextAmount;
                 const reserveBlocked = at.budget_remaining - nextAmount < reserve;
-                const disabled = alreadyLeading || full || short || reserveBlocked || offlineBid.isPending;
-                const reason = alreadyLeading ? "Leading" : full ? "Squad full" : short ? "No budget" : reserveBlocked ? "Reserve needed" : null;
+                const teamNonMalayali = (at as any).non_malayali_bought ?? 0;
+                const teamRemaining = Math.max(0, quota - teamNonMalayali);
+                const teamSlotsAfter = maxPlayers - playersAfterBid;
+                const classificationBlocked = quotaEnabled && p?.malayali == null;
+                const ceilingBlocked = quotaEnabled && p?.malayali === "non_malayali" && teamRemaining === 0;
+                const placesBlocked = quotaEnabled && p?.malayali !== "non_malayali" && teamSlotsAfter < teamRemaining;
+                const disabled = alreadyLeading || full || short || reserveBlocked || classificationBlocked || ceilingBlocked || placesBlocked || offlineBid.isPending;
+                const reason = alreadyLeading ? "Leading" : full ? "Squad full" : short ? "No budget" : classificationBlocked ? "Classification blank" : ceilingBlocked ? "Non-Malayali limit" : placesBlocked ? "Non-Malayali places due" : reserveBlocked ? "Reserve needed" : null;
                 return (
                   <Button
                     key={at.id}
