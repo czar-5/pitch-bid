@@ -127,8 +127,21 @@ const STEPS = [
   "Review",
 ] as const;
 
-export function AuctionWizardDialog({ trigger, auctionId }: { trigger: React.ReactNode; auctionId?: string }) {
+export function AuctionWizardDialog({
+  trigger,
+  auctionId,
+  cloneFromId,
+}: {
+  trigger: React.ReactNode;
+  /** Edit this auction in place. */
+  auctionId?: string;
+  /** Prefill from this auction but save as a brand-new upcoming one. */
+  cloneFromId?: string;
+}) {
   const isEdit = !!auctionId;
+  const isClone = !isEdit && !!cloneFromId;
+  // Both modes read the same source rows; only the save path differs.
+  const sourceId = auctionId ?? cloneFromId;
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState(0);
   const [state, setState] = useState<WizardState>(initial);
@@ -163,15 +176,15 @@ export function AuctionWizardDialog({ trigger, auctionId }: { trigger: React.Rea
     }
   }, [open]);
 
-  // Load existing auction when editing
+  // Load existing auction when editing or cloning
   const existingQ = useQuery({
-    queryKey: ["auction-edit", auctionId],
-    enabled: open && isEdit,
+    queryKey: ["auction-edit", sourceId],
+    enabled: open && !!sourceId,
     queryFn: async () => {
       const [a, at, ap] = await Promise.all([
-        supabase.from("auctions").select("*").eq("id", auctionId!).single(),
-        supabase.from("auction_teams").select("team_id").eq("auction_id", auctionId!),
-        supabase.from("auction_players").select("player_id,auction_order,is_captain,is_icon,icon_team_id,sold_team_id").eq("auction_id", auctionId!).order("auction_order", { ascending: true }),
+        supabase.from("auctions").select("*").eq("id", sourceId!).single(),
+        supabase.from("auction_teams").select("team_id").eq("auction_id", sourceId!),
+        supabase.from("auction_players").select("player_id,auction_order,is_captain,is_icon,icon_team_id,sold_team_id").eq("auction_id", sourceId!).order("auction_order", { ascending: true }),
       ]);
       if (a.error) throw a.error;
       if (at.error) throw at.error;
@@ -187,7 +200,7 @@ export function AuctionWizardDialog({ trigger, auctionId }: { trigger: React.Rea
   });
 
   useEffect(() => {
-    if (!open || !isEdit || !existingQ.data) return;
+    if (!open || !sourceId || !existingQ.data) return;
     const { auction, teams, players, auctioneerEmail } = existingQ.data;
     const scheduled = new Date(auction.scheduled_at);
     const rules = (auction.bid_rules_json as BidRule[] | null) ?? DEFAULT_BID_RULES;
@@ -204,7 +217,8 @@ export function AuctionWizardDialog({ trigger, auctionId }: { trigger: React.Rea
       iconCounts[t.team_id] = (iconPlayers[t.team_id] ?? []).length;
     }
     setState({
-      name: auction.name,
+      // A clone must not reuse the source's name — the user renames it on Basics.
+      name: isClone ? `${auction.name} (copy)` : auction.name,
       method: (((auction as any).method as AuctionMethod) ?? "online"),
       auctioneerEmail: auctioneerEmail ?? "",
       scheduledDate: scheduled,
@@ -223,7 +237,7 @@ export function AuctionWizardDialog({ trigger, auctionId }: { trigger: React.Rea
       nonMalayaliRuleEnabled: auction.non_malayali_rule_enabled === true,
       nonMalayaliPerTeam: auction.non_malayali_players_per_team ?? 0,
     });
-  }, [open, isEdit, existingQ.data]);
+  }, [open, sourceId, isClone, existingQ.data]);
 
   const teamsQ = useQuery({
     queryKey: ["teams-pick"],
@@ -353,7 +367,7 @@ export function AuctionWizardDialog({ trigger, auctionId }: { trigger: React.Rea
       return savedId;
     },
     onSuccess: () => {
-      toast.success(isEdit ? "Auction updated" : "Auction created");
+      toast.success(isEdit ? "Auction updated" : isClone ? "Auction cloned" : "Auction created");
       qc.invalidateQueries({ queryKey: ["auctions"] });
       if (isEdit && auctionId) {
         qc.invalidateQueries({ queryKey: ["auction", auctionId] });
@@ -365,13 +379,15 @@ export function AuctionWizardDialog({ trigger, auctionId }: { trigger: React.Rea
     onError: (e: Error) => toast.error(e.message),
   });
 
-  function canAdvance() {
-    if (step === 0) return (
+  // Takes the step number so cloneReady() below can check every step at once,
+  // not just the one on screen. Defaults to the step being shown.
+  function canAdvance(s: number = step) {
+    if (s === 0) return (
       state.name.trim().length > 0 &&
       !!state.scheduledDate &&
       (state.method === "online" || state.auctioneerEmail.trim().length > 0)
     );
-    if (step === 1) return (
+    if (s === 1) return (
       state.team_budget > 0 &&
       state.baseline_price > 0 &&
       (state.method === "offline" || state.round_closure_seconds > 0) &&
@@ -379,9 +395,9 @@ export function AuctionWizardDialog({ trigger, auctionId }: { trigger: React.Rea
       state.max_players_per_team >= 1 &&
       state.min_players_per_team <= state.max_players_per_team
     );
-    if (step === 2) return state.selectedTeams.size >= 2;
-    if (step === 3) return state.selectedPlayers.size >= 1;
-    if (step === 4) {
+    if (s === 2) return state.selectedTeams.size >= 2;
+    if (s === 3) return state.selectedPlayers.size >= 1;
+    if (s === 4) {
       // Each team's icon picker must match its count; no duplicates across teams.
       const seen = new Set<string>();
       for (const teamId of state.selectedTeams) {
@@ -403,16 +419,23 @@ export function AuctionWizardDialog({ trigger, auctionId }: { trigger: React.Rea
       if (state.selectedPlayers.size - totalAssigned < 1) return false;
       return true;
     }
-    if (step === 5) return specialRulesProblems(state, playersQ.data ?? []).length === 0;
+    if (s === 5) return specialRulesProblems(state, playersQ.data ?? []).length === 0;
     return true;
   }
+
+  // A clone starts from an auction that was already valid, so it can be saved
+  // without walking every step — but the source data may have changed since
+  // (a player deleted, a team removed), so re-check all of them first.
+  const cloneReady = isClone && !existingQ.isLoading && [0, 1, 2, 3, 4, 5].every((s) => canAdvance(s));
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{isEdit ? "Edit Auction" : "New Auction"} · {STEPS[step]}</DialogTitle>
+          <DialogTitle>
+            {isEdit ? "Edit Auction" : isClone ? "Clone Auction" : "New Auction"} · {STEPS[step]}
+          </DialogTitle>
         </DialogHeader>
 
         <div className="flex items-center gap-1 mb-2">
@@ -435,16 +458,26 @@ export function AuctionWizardDialog({ trigger, auctionId }: { trigger: React.Rea
           <Button variant="ghost" disabled={step === 0} onClick={() => setStep((s) => s - 1)}>
             <ChevronLeft className="h-4 w-4 mr-1" /> Back
           </Button>
-          {step < STEPS.length - 1 ? (
-            <Button onClick={() => setStep((s) => s + 1)} disabled={!canAdvance()}>
-              Next <ChevronRight className="h-4 w-4 ml-1" />
-            </Button>
-          ) : (
-            <Button onClick={() => create.mutate()} disabled={create.isPending}>
-              {create.isPending && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
-              {isEdit ? "Save changes" : "Create auction"}
-            </Button>
-          )}
+          <div className="flex items-center gap-2">
+            {/* Shortcut: rename on Basics and save straight away, without
+                clicking Next through steps the source auction already filled. */}
+            {isClone && step < STEPS.length - 1 && (
+              <Button variant="outline" onClick={() => create.mutate()} disabled={!cloneReady || create.isPending}>
+                {create.isPending && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+                Create clone
+              </Button>
+            )}
+            {step < STEPS.length - 1 ? (
+              <Button onClick={() => setStep((s) => s + 1)} disabled={!canAdvance()}>
+                Next <ChevronRight className="h-4 w-4 ml-1" />
+              </Button>
+            ) : (
+              <Button onClick={() => create.mutate()} disabled={create.isPending}>
+                {create.isPending && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+                {isEdit ? "Save changes" : isClone ? "Create clone" : "Create auction"}
+              </Button>
+            )}
+          </div>
         </div>
       </DialogContent>
     </Dialog>

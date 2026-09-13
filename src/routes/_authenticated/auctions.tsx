@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
-import { Plus, Calendar, Users, Radio, Trash2, Play, ArrowRight, Pencil } from "lucide-react";
+import { Plus, Calendar, Users, Radio, Trash2, Play, ArrowRight, Pencil, Copy } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { AuctionWizardDialog } from "@/components/admin/AuctionWizardDialog";
@@ -142,7 +142,10 @@ function Section({
                           variant="ghost"
                           className="h-7 w-7"
                           title="Edit auction"
-                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                          // Only stop the click bubbling to the card. Calling
+                          // preventDefault() here would cancel Radix's own open
+                          // handler on DialogTrigger, so the dialog never opened.
+                          onClick={(e) => e.stopPropagation()}
                         >
                           <Pencil className="h-3.5 w-3.5" />
                         </Button>
@@ -159,6 +162,23 @@ function Section({
                     </Button>
                   </>
                 )}
+                {/* Cloning works from any auction, finished or not: the wizard
+                    rebuilds the squads fresh, so no sold players or spent
+                    budgets carry across. */}
+                <AuctionWizardDialog
+                  cloneFromId={a.id}
+                  trigger={
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-7 w-7"
+                      title="Clone auction"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <Copy className="h-3.5 w-3.5" />
+                    </Button>
+                  }
+                />
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
                     <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={(e) => { e.stopPropagation(); }}>
