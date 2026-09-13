@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { roleLabel, malayaliLabel, playerMetaLine } from "@/lib/player-labels";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Plus, Search, ExternalLink, Pencil, Trash2, Upload } from "lucide-react";
@@ -29,19 +30,8 @@ export const Route = createFileRoute("/_authenticated/players")({
   component: PlayersPage,
 });
 
-const roleLabel: Record<string, string> = {
-  batter: "Batter",
-  bowler: "Bowler",
-  allrounder: "Allrounder",
-  batting_allrounder: "Batting Allrounder",
-  bowling_allrounder: "Bowling Allrounder",
-  wicket_keeper: "Wicket Keeper",
-  none: "—",
-};
-const malayaliLabel: Record<string, string> = {
-  malayali: "Malayali",
-  non_malayali: "Non-Malayali",
-};
+// Labels moved to @/lib/player-labels so the auction room shares them and stops
+// rendering the raw "none" enum value.
 
 function PlayersPage() {
   const { isAdmin } = useAuth();
@@ -122,12 +112,10 @@ function PlayersPage() {
                 {p.name}
               </p>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                {roleLabel[p.role] ?? p.role}
-                {p.batting_style ? ` · ${p.batting_style}` : ""}
-                {p.bowling_style ? ` · ${p.bowling_style}` : ""}
+                {playerMetaLine(roleLabel(p.role), p.batting_style, p.bowling_style)}
               </p>
               <p className="mt-1 text-[11px] font-medium text-muted-foreground">
-                {p.malayali ? malayaliLabel[p.malayali] : "Classification blank"}
+                {malayaliLabel(p.malayali) || "Classification blank"}
               </p>
               <p className="mt-0.5 text-[11px] text-muted-foreground/80 font-mono">
                 M {p.matches} · R {p.runs} · Avg {Number(p.batting_avg).toFixed(2)} · SR {Number(p.batting_sr).toFixed(2)} · W {p.wickets} · Econ {Number(p.bowling_economy).toFixed(2)}

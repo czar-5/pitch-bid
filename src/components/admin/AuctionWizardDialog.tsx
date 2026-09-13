@@ -15,6 +15,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { roleLabel, playerMetaLine } from "@/lib/player-labels";
 
 type BidRule = { min: number; max: number | null; increment: number };
 
@@ -699,7 +700,7 @@ function StepPlayers({ state, setState, players, loading }: { state: WizardState
             <Checkbox checked={state.selectedPlayers.has(p.id)} onCheckedChange={() => toggle(p.id)} />
             <div className="flex-1">
               <div className="text-sm font-medium">{p.name}</div>
-              <div className="text-xs text-muted-foreground capitalize">{p.role.replace(/_/g, " ")}</div>
+              <div className="text-xs text-muted-foreground">{roleLabel(p.role)}</div>
             </div>
           </label>
         ))}
@@ -914,7 +915,7 @@ function StepCaptainsIcons({
                   >
                     <option value="">None</option>
                     {captainOpts.map((p) => (
-                      <option key={p.id} value={p.id}>{p.name} · {p.role.replace(/_/g, " ")}</option>
+                      <option key={p.id} value={p.id}>{playerMetaLine(p.name, roleLabel(p.role))}</option>
                     ))}
                   </select>
                 </div>
@@ -945,7 +946,7 @@ function StepCaptainsIcons({
                         <label key={p.id} className={cn("flex items-center gap-2 p-2 text-sm", atCap ? "opacity-40 cursor-not-allowed" : "cursor-pointer hover:bg-muted/50")}>
                           <Checkbox checked={checked} disabled={atCap} onCheckedChange={() => toggleIcon(t.id, p.id)} />
                           <span className="flex-1 truncate">{p.name}</span>
-                          <span className="text-xs text-muted-foreground capitalize">{p.role.replace(/_/g, " ")}</span>
+                          <span className="text-xs text-muted-foreground">{roleLabel(p.role)}</span>
                         </label>
                       );
                     })}

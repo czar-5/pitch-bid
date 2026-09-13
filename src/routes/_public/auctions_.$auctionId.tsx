@@ -6,6 +6,7 @@ import { format } from "date-fns";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { roleLabel, playerMetaLine } from "@/lib/player-labels";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -145,6 +146,18 @@ function AuctionDetail() {
     return counts;
   }, [playersQ.data]);
 
+  // Player id -> Malayali classification. get_next_player() does not return that column,
+  // so the "next player" cards look it up here from the list we already load. Also above
+  // the early returns: hooks must run on every render.
+  const malayaliByPlayer = useMemo(() => {
+    const m: Record<string, string | null> = {};
+    for (const ap of playersQ.data ?? []) {
+      const player = ap.player as { id?: string; malayali?: string | null } | null;
+      if (player?.id) m[player.id] = player.malayali ?? null;
+    }
+    return m;
+  }, [playersQ.data]);
+
   if (auctionQ.isLoading) return <p className="text-muted-foreground">Loading…</p>;
   if (!auctionQ.data) return <p className="text-muted-foreground">Auction not found.</p>;
   const a = auctionQ.data;
@@ -236,6 +249,7 @@ function AuctionDetail() {
         <LobbyRoom
           auctionId={auctionId}
           auction={a}
+          malayaliByPlayer={malayaliByPlayer}
           teams={teamsQ.data ?? []}
           isAdmin={isAdmin}
           isController={isController}
@@ -252,6 +266,7 @@ function AuctionDetail() {
           lastFinalizedAp={lastFinalizedAp}
           teams={teamsQ.data ?? []}
           nonMalayaliByTeam={nonMalayaliByTeam}
+          malayaliByPlayer={malayaliByPlayer}
           isAdmin={isAdmin}
           isController={isController}
           isOffline={isOffline}
@@ -264,7 +279,11 @@ function AuctionDetail() {
         <h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-3 flex items-center gap-2">
           <Users className="h-4 w-4" /> Teams ({teamsQ.data?.length ?? 0})
         </h2>
-        <TeamsTabs auctionId={auctionId} teams={teamsQ.data ?? []} />
+        <TeamsTabs
+          auctionId={auctionId}
+          teams={teamsQ.data ?? []}
+          quotaEnabled={a.non_malayali_rule_enabled === true}
+        />
       </section>
       )}
 
@@ -284,7 +303,7 @@ function AuctionDetail() {
               <div key={ap.id} className="p-3 flex items-center gap-3 text-sm">
                 <div className="flex-1 min-w-0">
                   <p className="font-medium truncate">{ap.player?.name}</p>
-                  <p className="text-xs text-muted-foreground capitalize">{ap.player?.role?.replace(/_/g, " ")}</p>
+                  <p className="text-xs text-muted-foreground">{roleLabel(ap.player?.role)}</p>
                 </div>
                 {ap.is_captain ? (
                   <span className="text-xs font-semibold text-primary">Captain</span>
@@ -341,11 +360,39 @@ function AuctionDetail() {
 
 type AuctionRow = NonNullable<ReturnType<typeof useQuery<{ id: string }>>["data"]>;
 
+/**
+ * Called out on the "next player" cards so the room can see a quota-relevant player
+ * coming before bidding opens. Only rendered when the auction has the rule switched on;
+ * Malayali players deliberately show nothing.
+ */
+function MalayaliFlag({ enabled, classification }: { enabled: boolean; classification?: string | null }) {
+  if (!enabled) return null;
+  if (classification == null) {
+    // A blank classification silently disables every bid button, so say why.
+    return (
+      <div className="rounded-lg border-2 border-destructive bg-destructive/15 px-4 py-3 text-center">
+        <p className="text-sm font-bold uppercase tracking-widest text-destructive">
+          Classification not set — bidding blocked
+        </p>
+      </div>
+    );
+  }
+  if (classification !== "non_malayali") return null;
+  return (
+    <div className="rounded-lg border-2 border-amber-500 bg-amber-500/15 px-4 py-3 text-center">
+      <p className="text-sm font-bold uppercase tracking-widest text-amber-600 dark:text-amber-400">
+        Non-Malayali player
+      </p>
+    </div>
+  );
+}
+
 function LobbyRoom({
-  auctionId, auction, teams, isAdmin, isController, isOffline, userId,
+  auctionId, auction, malayaliByPlayer, teams, isAdmin, isController, isOffline, userId,
 }: {
   auctionId: string;
   auction: any;
+  malayaliByPlayer: Record<string, string | null>;
   teams: any[];
   isAdmin: boolean;
   isController: boolean;
@@ -463,6 +510,10 @@ function LobbyRoom({
       {nextPlayerQ.data ? (
         <div className="rounded-xl border border-primary/40 bg-gradient-to-br from-primary/15 to-card p-5 space-y-4">
           <p className="text-[10px] uppercase tracking-widest text-primary font-bold text-center">Up next</p>
+          <MalayaliFlag
+            enabled={auction.non_malayali_rule_enabled === true}
+            classification={malayaliByPlayer[nextPlayerQ.data.player_id]}
+          />
           <div className="flex flex-row items-start gap-4">
             <div className="h-32 w-32 sm:h-48 sm:w-48 rounded-xl bg-muted overflow-hidden flex-shrink-0">
               {nextPlayerQ.data.photo
@@ -472,9 +523,11 @@ function LobbyRoom({
             <div className="flex-1 min-w-0 w-full">
               <h2 className="text-xl sm:text-3xl font-bold truncate">{nextPlayerQ.data.name}</h2>
               <p className="text-sm text-muted-foreground mt-1">
-                <span className="capitalize">{nextPlayerQ.data.role?.replace(/_/g, " ") ?? "—"}</span>
-                {nextPlayerQ.data.batting_style ? <> · {nextPlayerQ.data.batting_style}</> : null}
-                {nextPlayerQ.data.bowling_style ? <> · {nextPlayerQ.data.bowling_style}</> : null}
+                {playerMetaLine(
+                  roleLabel(nextPlayerQ.data.role),
+                  nextPlayerQ.data.batting_style,
+                  nextPlayerQ.data.bowling_style,
+                )}
               </p>
               {nextPlayerQ.data.cric_heroes_link && (
                 <a
@@ -586,7 +639,8 @@ function LobbyRoom({
 }
 
 function LiveRoom({
-  auctionId, auction, currentAp, lastFinalizedAp, teams, nonMalayaliByTeam, isAdmin, isController, isOffline, userId,
+  auctionId, auction, currentAp, lastFinalizedAp, teams, nonMalayaliByTeam, malayaliByPlayer,
+  isAdmin, isController, isOffline, userId,
 }: {
   auctionId: string;
   auction: any;
@@ -594,6 +648,7 @@ function LiveRoom({
   lastFinalizedAp: any;
   teams: any[];
   nonMalayaliByTeam: Record<string, number>;
+  malayaliByPlayer: Record<string, string | null>;
   isAdmin: boolean;
   isController: boolean;
   isOffline: boolean;
@@ -770,6 +825,8 @@ function LiveRoom({
       <IntermissionRoom
         auctionId={auctionId}
         lastFinalizedAp={lastFinalizedAp}
+        quotaEnabled={auction.non_malayali_rule_enabled === true}
+        malayaliByPlayer={malayaliByPlayer}
         isController={isController}
         onNext={() => next.mutate()}
         nextPending={next.isPending}
@@ -829,9 +886,7 @@ function LiveRoom({
                 <p className="text-[10px] uppercase tracking-widest text-primary font-bold">On the block</p>
                 <h2 className="text-2xl sm:text-3xl font-bold truncate">{p?.name}</h2>
                 <p className="text-sm text-muted-foreground mt-1">
-                  <span className="capitalize">{p?.role?.replace(/_/g, " ") ?? "—"}</span>
-                  {p?.batting_style ? <> · {p.batting_style}</> : null}
-                  {p?.bowling_style ? <> · {p.bowling_style}</> : null}
+                  {playerMetaLine(roleLabel(p?.role), p?.batting_style, p?.bowling_style)}
                 </p>
               </div>
               {/* Timer is rendered next to the bid button below so all decision info is in one place */}
@@ -1071,10 +1126,12 @@ function PreviousBidHistory({ auctionPlayerId, player }: { auctionPlayerId: stri
 }
 
 function IntermissionRoom({
-  auctionId, isController, onNext, nextPending,
+  auctionId, quotaEnabled, malayaliByPlayer, isController, onNext, nextPending,
 }: {
   auctionId: string;
   lastFinalizedAp?: any;
+  quotaEnabled: boolean;
+  malayaliByPlayer: Record<string, string | null>;
   isController: boolean;
   onNext: () => void;
   nextPending: boolean;
@@ -1103,6 +1160,7 @@ function IntermissionRoom({
 
       {p && (
         <div className="space-y-4">
+          <MalayaliFlag enabled={quotaEnabled} classification={malayaliByPlayer[p.player_id]} />
           <div className="flex flex-row items-start gap-4">
             <div className="h-32 w-32 sm:h-56 sm:w-56 rounded-xl bg-muted overflow-hidden flex-shrink-0">
               {p.photo
@@ -1112,9 +1170,7 @@ function IntermissionRoom({
             <div className="flex-1 min-w-0 w-full">
               <h2 className="text-xl sm:text-3xl font-bold truncate">{p.name}</h2>
               <p className="text-sm text-muted-foreground mt-1">
-                <span className="capitalize">{p.role?.replace(/_/g, " ") ?? "—"}</span>
-                {p.batting_style ? <> · {p.batting_style}</> : null}
-                {p.bowling_style ? <> · {p.bowling_style}</> : null}
+                {playerMetaLine(roleLabel(p.role), p.batting_style, p.bowling_style)}
               </p>
             </div>
           </div>
@@ -1149,10 +1205,11 @@ function IntermissionRoom({
 }
 
 function TeamsTabs({
-  auctionId, teams,
+  auctionId, teams, quotaEnabled,
 }: {
   auctionId: string;
   teams: any[];
+  quotaEnabled: boolean;
 }) {
   const [activeId, setActiveId] = useState<string | null>(teams[0]?.team?.id ?? null);
   useEffect(() => {
@@ -1164,7 +1221,7 @@ function TeamsTabs({
     queryFn: async () => {
       const { data, error } = await supabase
         .from("auction_players")
-        .select("sold_team_id,sold_price,is_captain,is_icon,player:players(name,role,photo)")
+        .select("sold_team_id,sold_price,is_captain,is_icon,player:players(name,role,photo,malayali)")
         .eq("auction_id", auctionId)
         .eq("status", "sold");
       if (error) throw error;
@@ -1186,11 +1243,16 @@ function TeamsTabs({
   const active = teams.find((t) => t.team?.id === activeId) ?? teams[0];
   if (!active) return <p className="text-xs text-muted-foreground">No teams.</p>;
   const activeRoster = rosterByTeam.get(active.team?.id) ?? [];
+  // Counted from the rows listed below rather than a stored column, so the tally can
+  // never disagree with the names it sits above.
+  const activeNonMalayali = activeRoster.filter(
+    (r: any) => r.player?.malayali === "non_malayali",
+  ).length;
 
   return (
     <div>
       {/* Browser-style tab strip */}
-      <div className="flex items-end gap-1 overflow-x-auto -mb-px pb-0 scrollbar-thin">
+      <div className="flex flex-wrap items-end gap-1 -mb-px">
         {teams.map((at) => {
           const isActive = at.team?.id === activeId;
           return (
@@ -1233,6 +1295,11 @@ function TeamsTabs({
             <p className="font-semibold truncate">{active.team?.name}</p>
             <p className="text-xs text-muted-foreground">
               Budget {(active.budget_remaining ?? 0).toLocaleString()} · {active.players_bought ?? 0} bought
+              {quotaEnabled && (
+                <span className="font-semibold text-amber-600 dark:text-amber-400">
+                  {" "}· {activeNonMalayali} Non-Malayali
+                </span>
+              )}
             </p>
           </div>
           <span className="text-[10px] font-semibold text-muted-foreground rounded-full bg-muted px-2 py-0.5">
@@ -1256,8 +1323,15 @@ function TeamsTabs({
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-medium truncate">{name}</p>
-                    <p className="text-[10px] text-muted-foreground capitalize">{p?.role?.replace(/_/g, " ")}</p>
+                    <p className="text-[10px] text-muted-foreground">{roleLabel(p?.role)}</p>
                   </div>
+                  {/* Its own element, not part of the price/Captain/Icon branch below,
+                      so captains and icons are tagged too. */}
+                  {quotaEnabled && p?.malayali === "non_malayali" && (
+                    <span className="text-[10px] font-semibold text-amber-600 dark:text-amber-400 whitespace-nowrap">
+                      (Non-Malayali)
+                    </span>
+                  )}
                   {r.is_captain ? (
                     <span className="text-[10px] font-semibold text-primary uppercase tracking-wide">Captain</span>
                   ) : r.is_icon ? (

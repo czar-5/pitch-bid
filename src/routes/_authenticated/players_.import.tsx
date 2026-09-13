@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { ArrowLeft, Download, FileText, FileArchive, Loader2, Upload, CheckCircle2, XCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { roleLabel, malayaliLabel } from "@/lib/player-labels";
 import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/_authenticated/players_/import")({
@@ -276,8 +277,9 @@ function BulkImportPage() {
                         : <CheckCircle2 className="h-4 w-4 text-emerald-500" />}
                     </td>
                     <td className="p-2 font-medium">{r.name || <span className="text-muted-foreground italic">missing</span>}</td>
-                    <td className="p-2 capitalize">{r.role?.replace(/_/g, " ")}</td>
-                    <td className="p-2">{r.malayali === "malayali" ? "Malayali" : r.malayali === "non_malayali" ? "Non-Malayali" : "—"}</td>
+                    {/* Table cells keep a dash rather than going blank. */}
+                    <td className="p-2">{roleLabel(r.role) || "—"}</td>
+                    <td className="p-2">{malayaliLabel(r.malayali) || "—"}</td>
                     <td className="p-2 font-mono text-[10px]">
                       {r.photo_filename
                         ? (photos.has(r.photo_filename)
