@@ -303,7 +303,7 @@ function AuctionDetail() {
               <div key={ap.id} className="p-3 flex items-center gap-3 text-sm">
                 <div className="flex-1 min-w-0">
                   <p className="font-medium truncate">{ap.player?.name}</p>
-                  <p className="text-xs text-muted-foreground">{roleLabel(ap.player?.role)}</p>
+                  <p className="text-xs text-muted-foreground">{roleLabel(ap.player?.role)}{a.non_malayali_rule_enabled === true && ap.player?.malayali === "non_malayali" && <span className="font-semibold text-amber-600 dark:text-amber-400">Non-Malayali</span>}</p>
                 </div>
                 {ap.is_captain ? (
                   <span className="text-xs font-semibold text-primary">Captain</span>
@@ -893,6 +893,10 @@ function LiveRoom({
             </div>
           </div>
         </div>
+        {/* Everyone except the offline controller watches this card during a round, so
+            the flag has to live here too — the controller's own copy of this information
+            is the reason text on the team bid buttons, which nobody else can see. */}
+        <MalayaliFlag enabled={quotaEnabled} classification={p?.malayali} />
         <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
           {[
             { label: "Matches", value: p?.matches ?? 0 },
@@ -1252,7 +1256,11 @@ function TeamsTabs({
   return (
     <div>
       {/* Browser-style tab strip */}
-      <div className="flex flex-wrap items-end gap-1 -mb-px">
+      {/* auto-fit columns give the three behaviours in one rule, purely from the space
+          available: while the tabs fit, each name stays on one line; as the screen
+          narrows each tab shrinks to its 6.5rem floor and the name wraps inside it;
+          below that the row can hold fewer tabs and they flow onto another row. */}
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(6.5rem,1fr))] items-end gap-1 -mb-px">
         {teams.map((at) => {
           const isActive = at.team?.id === activeId;
           return (
@@ -1260,21 +1268,13 @@ function TeamsTabs({
               key={at.id}
               type="button"
               onClick={() => setActiveId(at.team.id)}
-              className={`group relative flex items-center gap-2 px-3 py-2 rounded-t-lg border border-b-0 text-xs font-medium whitespace-nowrap transition ${
+              className={`group relative self-stretch rounded-t-lg border border-b-0 px-2 py-2 text-center text-xs font-medium leading-tight break-words transition ${
                 isActive
                   ? "bg-card border-border text-foreground z-10"
                   : "bg-muted/50 border-transparent text-muted-foreground hover:bg-muted hover:text-foreground"
               }`}
             >
-              <div
-                className="h-5 w-5 rounded bg-muted flex items-center justify-center text-[9px] font-bold overflow-hidden flex-shrink-0"
-                style={{ background: at.team?.primary_color ?? undefined }}
-              >
-                {at.team?.logo_url
-                  ? <img src={at.team.logo_url} alt="" className="h-full w-full object-cover" />
-                  : (at.team?.name as string)?.slice(0, 2).toUpperCase()}
-              </div>
-              <span className="max-w-[10rem] truncate">{at.team?.name}</span>
+              {at.team?.name}
             </button>
           );
         })}
