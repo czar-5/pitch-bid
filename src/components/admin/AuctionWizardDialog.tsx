@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
@@ -34,18 +35,97 @@ type WizardState = {
   selectedTeams: Set<string>;
   selectedPlayers: Set<string>;
   captains: Record<string, string | null>;       // teamId -> playerId | null
-  iconCounts: Record<string, number>;            // teamId -> N
-  iconPlayers: Record<string, string[]>;         // teamId -> playerIds
+  iconCounts: Record<string, number>; // teamId -> N
+  iconPlayers: Record<string, string[]>; // teamId -> playerIds
+  nonMalayaliRuleEnabled: boolean;
+  nonMalayaliPerTeam: number; // exact count each team must end with
 };
 
 const DEFAULT_BID_RULES: BidRule[] = [
   { min: 0, max: null, increment: 100 },
 ];
 
+/**
+ * Mirrors the server-side validate_non_malayali_auction() checks so the wizard can warn
+ * before saving. The database remains the authority — this only produces friendlier,
+ * earlier feedback. Returns a human-readable problem list; empty means the rule is valid.
+ */
+function specialRulesProblems(state: WizardState, players: PlayerOpt[]): string[] {
+  if (!state.nonMalayaliRuleEnabled) return [];
+  const problems: string[] = [];
+  const quota = state.nonMalayaliPerTeam;
+  const maxPerTeam = state.max_players_per_team;
+
+  if (!Number.isInteger(quota) || quota < 1 || quota > maxPerTeam) {
+    problems.push(
+      `Players per team must be a whole number between 1 and ${maxPerTeam} (the maximum squad size).`,
+    );
+    return problems;
+  }
+
+  const byId = new Map(players.map((p) => [p.id, p]));
+  const selected = Array.from(state.selectedPlayers)
+    .map((id) => byId.get(id))
+    .filter(Boolean) as PlayerOpt[];
+
+  const unclassified = selected.filter((p) => p.malayali == null).length;
+  if (unclassified > 0) {
+    problems.push(
+      `${unclassified} selected player${unclassified === 1 ? " has" : "s have"} a blank Malayali classification. Set it on the Players page before starting.`,
+    );
+  }
+
+  const teamCount = state.selectedTeams.size;
+  const poolNonMalayali = selected.filter((p) => p.malayali === "non_malayali").length;
+  const needed = teamCount * quota;
+  if (poolNonMalayali < needed) {
+    problems.push(
+      `Not enough Non-Malayali players selected: ${teamCount} teams × ${quota} = ${needed} needed, but only ${poolNonMalayali} are in the pool.`,
+    );
+  }
+
+  // Captains and icons are pre-sold, so they already count against each team's quota.
+  const assignedPlayerIds = new Set<string>();
+  for (const teamId of state.selectedTeams) {
+    const preAssigned: string[] = [];
+    const cap = state.captains[teamId];
+    if (cap && state.selectedPlayers.has(cap) && !assignedPlayerIds.has(cap)) {
+      preAssigned.push(cap);
+      assignedPlayerIds.add(cap);
+    }
+    for (const pid of state.iconPlayers[teamId] ?? []) {
+      if (!state.selectedPlayers.has(pid) || assignedPlayerIds.has(pid)) continue;
+      preAssigned.push(pid);
+      assignedPlayerIds.add(pid);
+    }
+    const assignedNonMalayali = preAssigned.filter(
+      (id) => byId.get(id)?.malayali === "non_malayali",
+    ).length;
+    if (assignedNonMalayali > quota) {
+      problems.push(
+        `A team's captain/icons already include ${assignedNonMalayali} Non-Malayali players, more than the quota of ${quota}.`,
+      );
+    }
+    if (maxPerTeam - preAssigned.length < quota - assignedNonMalayali) {
+      problems.push("A team does not have enough squad places left to meet the Non-Malayali rule.");
+    }
+  }
+
+  return Array.from(new Set(problems));
+}
+
 const NO_SPIN =
   "[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none";
 
-const STEPS = ["Basics", "Money rules", "Teams", "Players", "Captains & Icons", "Review"] as const;
+const STEPS = [
+  "Basics",
+  "Money rules",
+  "Teams",
+  "Players",
+  "Captains & Icons",
+  "Special rules",
+  "Review",
+] as const;
 
 export function AuctionWizardDialog({ trigger, auctionId }: { trigger: React.ReactNode; auctionId?: string }) {
   const isEdit = !!auctionId;
@@ -72,6 +152,8 @@ export function AuctionWizardDialog({ trigger, auctionId }: { trigger: React.Rea
       captains: {},
       iconCounts: {},
       iconPlayers: {},
+      nonMalayaliRuleEnabled: false,
+      nonMalayaliPerTeam: 0,
     };
   }
 
@@ -138,6 +220,8 @@ export function AuctionWizardDialog({ trigger, auctionId }: { trigger: React.Rea
       captains,
       iconCounts,
       iconPlayers,
+      nonMalayaliRuleEnabled: auction.non_malayali_rule_enabled === true,
+      nonMalayaliPerTeam: auction.non_malayali_players_per_team ?? 0,
     });
   }, [open, isEdit, existingQ.data]);
 
@@ -154,7 +238,7 @@ export function AuctionWizardDialog({ trigger, auctionId }: { trigger: React.Rea
   const playersQ = useQuery({
     queryKey: ["players-pick"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("players").select("id,name,role").order("name");
+      const { data, error } = await supabase.from("players").select("id,name,role,malayali").order("name");
       if (error) throw error;
       return data;
     },
@@ -188,6 +272,8 @@ export function AuctionWizardDialog({ trigger, auctionId }: { trigger: React.Rea
         round_closure_seconds: state.method === "offline" ? 0 : state.round_closure_seconds,
         min_players_per_team: state.min_players_per_team,
         max_players_per_team: state.max_players_per_team,
+        non_malayali_rule_enabled: state.nonMalayaliRuleEnabled,
+        non_malayali_players_per_team: state.nonMalayaliRuleEnabled ? state.nonMalayaliPerTeam : 0,
         bid_rules_json: state.bid_rules.map((r, i, arr) => ({
           min: i === 0 ? state.baseline_price : (arr[i - 1].max ?? state.baseline_price),
           max: r.max,
@@ -317,6 +403,7 @@ export function AuctionWizardDialog({ trigger, auctionId }: { trigger: React.Rea
       if (state.selectedPlayers.size - totalAssigned < 1) return false;
       return true;
     }
+    if (step === 5) return specialRulesProblems(state, playersQ.data ?? []).length === 0;
     return true;
   }
 
@@ -339,7 +426,10 @@ export function AuctionWizardDialog({ trigger, auctionId }: { trigger: React.Rea
         {step === 2 && <StepTeams state={state} setState={setState} teams={teamsQ.data ?? []} loading={teamsQ.isLoading} />}
         {step === 3 && <StepPlayers state={state} setState={setState} players={playersQ.data ?? []} loading={playersQ.isLoading} />}
         {step === 4 && <StepCaptainsIcons state={state} setState={setState} teams={teamsQ.data ?? []} players={playersQ.data ?? []} />}
-        {step === 5 && <StepReview state={state} teams={teamsQ.data ?? []} players={playersQ.data ?? []} />}
+        {step === 5 && (
+          <StepSpecialRules state={state} setState={setState} players={playersQ.data ?? []} />
+        )}
+        {step === 6 && <StepReview state={state} teams={teamsQ.data ?? []} players={playersQ.data ?? []} />}
 
         <div className="flex items-center justify-between pt-4 border-t border-border mt-4">
           <Button variant="ghost" disabled={step === 0} onClick={() => setStep((s) => s - 1)}>
@@ -543,7 +633,12 @@ function StepTeams({ state, setState, teams, loading }: { state: WizardState; se
   );
 }
 
-type PlayerOpt = { id: string; name: string; role: string };
+type PlayerOpt = {
+  id: string;
+  name: string;
+  role: string;
+  malayali?: "malayali" | "non_malayali" | null;
+};
 function StepPlayers({ state, setState, players, loading }: { state: WizardState; setState: Setter; players: PlayerOpt[]; loading: boolean }) {
   const [q, setQ] = useState("");
   const filtered = useMemo(() => players.filter((p) => (p.name ?? "").toLowerCase().includes(q.toLowerCase())), [players, q]);
@@ -581,6 +676,107 @@ function StepPlayers({ state, setState, players, loading }: { state: WizardState
   );
 }
 
+function StepSpecialRules({
+  state,
+  setState,
+  players,
+}: {
+  state: WizardState;
+  setState: Setter;
+  players: PlayerOpt[];
+}) {
+  const byId = new Map(players.map((p) => [p.id, p]));
+  const selected = Array.from(state.selectedPlayers)
+    .map((id) => byId.get(id))
+    .filter(Boolean) as PlayerOpt[];
+  const counts = {
+    malayali: selected.filter((p) => p.malayali === "malayali").length,
+    nonMalayali: selected.filter((p) => p.malayali === "non_malayali").length,
+    blank: selected.filter((p) => p.malayali == null).length,
+  };
+  const problems = specialRulesProblems(state, players);
+  const teamCount = state.selectedTeams.size;
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-lg border border-border p-3 space-y-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="space-y-0.5">
+            <Label htmlFor="non-malayali-rule" className="text-sm font-medium">
+              Non-Malayali players
+            </Label>
+            <p className="text-xs text-muted-foreground">
+              Require every team to finish with an exact number of Non-Malayali players.
+            </p>
+          </div>
+          <Switch
+            id="non-malayali-rule"
+            checked={state.nonMalayaliRuleEnabled}
+            onCheckedChange={(checked) =>
+              setState((s) => ({
+                ...s,
+                nonMalayaliRuleEnabled: checked,
+                nonMalayaliPerTeam: checked ? s.nonMalayaliPerTeam || 1 : 0,
+              }))
+            }
+          />
+        </div>
+
+        {state.nonMalayaliRuleEnabled && (
+          <div className="space-y-2">
+            <Label>Players per team</Label>
+            <Input
+              type="number"
+              min={1}
+              max={state.max_players_per_team}
+              className={cn(NO_SPIN, "w-32")}
+              value={state.nonMalayaliPerTeam}
+              onChange={(e) =>
+                setState((s) => ({ ...s, nonMalayaliPerTeam: Number(e.target.value) }))
+              }
+            />
+            <p className="text-xs text-muted-foreground">
+              Each of the {teamCount} team{teamCount === 1 ? "" : "s"} must end with exactly this
+              many Non-Malayali players, out of a maximum squad of {state.max_players_per_team}.
+            </p>
+          </div>
+        )}
+      </div>
+
+      {state.nonMalayaliRuleEnabled && (
+        <div className="rounded-lg border border-border p-3 text-sm space-y-1">
+          <p className="font-medium">Selected player pool</p>
+          <p className="text-muted-foreground text-xs">
+            Malayali {counts.malayali} · Non-Malayali {counts.nonMalayali} ·{" "}
+            <span className={counts.blank > 0 ? "text-destructive font-medium" : ""}>
+              Blank {counts.blank}
+            </span>
+          </p>
+        </div>
+      )}
+
+      {problems.length > 0 && (
+        <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-3 space-y-1">
+          <p className="text-sm font-medium text-destructive">Fix before continuing</p>
+          <ul className="list-disc pl-5 space-y-1">
+            {problems.map((p) => (
+              <li key={p} className="text-xs text-destructive">
+                {p}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {!state.nonMalayaliRuleEnabled && (
+        <p className="text-xs text-muted-foreground">
+          Rule is off — teams can sign any mix of players.
+        </p>
+      )}
+    </div>
+  );
+}
+
 function StepReview({ state, teams, players }: { state: WizardState; teams: TeamOpt[]; players: PlayerOpt[] }) {
   const teamNames = teams.filter((t) => state.selectedTeams.has(t.id)).map((t) => t.name);
   const totalCaps = Array.from(state.selectedTeams).filter((id) => !!state.captains[id]).length;
@@ -599,6 +795,10 @@ function StepReview({ state, teams, players }: { state: WizardState; teams: Team
       <Row label="Teams" value={`${teamNames.length} · ${teamNames.slice(0, 4).join(", ")}${teamNames.length > 4 ? "…" : ""}`} />
       <Row label="Players" value={`${state.selectedPlayers.size} of ${players.length}`} />
       <Row label="Pre-assigned" value={`${totalCaps} captain(s) · ${totalIcons} icon(s)`} />
+      <Row
+        label="Non-Malayali rule"
+        value={state.nonMalayaliRuleEnabled ? `${state.nonMalayaliPerTeam} per team` : "Off"}
+      />
     </div>
   );
 }

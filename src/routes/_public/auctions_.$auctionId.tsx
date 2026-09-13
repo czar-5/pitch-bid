@@ -130,6 +130,21 @@ function AuctionDetail() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  // How many Non-Malayali players each team has already bought, keyed by team id.
+  // Derived from the auction-players list rather than stored on auction_teams, so it
+  // can never drift out of step with the sold rows the server enforces against.
+  // Declared above the early returns below: hooks must run on every render.
+  const nonMalayaliByTeam = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const ap of playersQ.data ?? []) {
+      const player = ap.player as { malayali?: string | null } | null;
+      if (ap.status !== "sold" || !ap.sold_team_id) continue;
+      if (player?.malayali !== "non_malayali") continue;
+      counts[ap.sold_team_id] = (counts[ap.sold_team_id] ?? 0) + 1;
+    }
+    return counts;
+  }, [playersQ.data]);
+
   if (auctionQ.isLoading) return <p className="text-muted-foreground">Loading…</p>;
   if (!auctionQ.data) return <p className="text-muted-foreground">Auction not found.</p>;
   const a = auctionQ.data;
@@ -236,6 +251,7 @@ function AuctionDetail() {
           currentAp={currentAp}
           lastFinalizedAp={lastFinalizedAp}
           teams={teamsQ.data ?? []}
+          nonMalayaliByTeam={nonMalayaliByTeam}
           isAdmin={isAdmin}
           isController={isController}
           isOffline={isOffline}
@@ -570,13 +586,14 @@ function LobbyRoom({
 }
 
 function LiveRoom({
-  auctionId, auction, currentAp, lastFinalizedAp, teams, isAdmin, isController, isOffline, userId,
+  auctionId, auction, currentAp, lastFinalizedAp, teams, nonMalayaliByTeam, isAdmin, isController, isOffline, userId,
 }: {
   auctionId: string;
   auction: any;
   currentAp: any;
   lastFinalizedAp: any;
   teams: any[];
+  nonMalayaliByTeam: Record<string, number>;
   isAdmin: boolean;
   isController: boolean;
   isOffline: boolean;
@@ -777,9 +794,7 @@ function LiveRoom({
   const wouldBreakReserve = !!selectedAt && (selectedAt.budget_remaining - nextAmount) < reserveNeeded;
   const quotaEnabled = auction.non_malayali_rule_enabled === true;
   const quota = (auction.non_malayali_players_per_team as number) ?? 0;
-  const nonMalayaliCount = selectedTeam
-    ? (teams.find((t) => t.team?.id === selectedTeam) as any)?.non_malayali_bought ?? 0
-    : 0;
+  const nonMalayaliCount = selectedTeam ? (nonMalayaliByTeam[selectedTeam] ?? 0) : 0;
   const remainingNonMalayali = Math.max(0, quota - nonMalayaliCount);
   const slotsAfterBid = selectedAt ? maxPlayers - (selectedAt.players_bought + 1) : Infinity;
   const unclassifiedBlocked = quotaEnabled && p?.malayali == null;
@@ -928,7 +943,7 @@ function LiveRoom({
                 const full = at.players_bought >= maxPlayers;
                 const short = at.budget_remaining < nextAmount;
                 const reserveBlocked = at.budget_remaining - nextAmount < reserve;
-                const teamNonMalayali = (at as any).non_malayali_bought ?? 0;
+                const teamNonMalayali = nonMalayaliByTeam[at.team?.id] ?? 0;
                 const teamRemaining = Math.max(0, quota - teamNonMalayali);
                 const teamSlotsAfter = maxPlayers - playersAfterBid;
                 const classificationBlocked = quotaEnabled && p?.malayali == null;
