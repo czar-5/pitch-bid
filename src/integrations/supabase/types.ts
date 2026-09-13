@@ -148,6 +148,7 @@ export type Database = {
           last_finalized_player_id: string | null
           max_players_per_team: number
           method: Database["public"]["Enums"]["auction_method"]
+          min_bid_gap_seconds: number
           min_players_per_team: number
           name: string
           non_malayali_players_per_team: number
@@ -169,6 +170,7 @@ export type Database = {
           last_finalized_player_id?: string | null
           max_players_per_team?: number
           method?: Database["public"]["Enums"]["auction_method"]
+          min_bid_gap_seconds?: number
           min_players_per_team?: number
           name: string
           non_malayali_players_per_team?: number
@@ -190,6 +192,7 @@ export type Database = {
           last_finalized_player_id?: string | null
           max_players_per_team?: number
           method?: Database["public"]["Enums"]["auction_method"]
+          min_bid_gap_seconds?: number
           min_players_per_team?: number
           name?: string
           non_malayali_players_per_team?: number

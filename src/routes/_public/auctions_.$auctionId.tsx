@@ -730,6 +730,20 @@ function LiveRoom({
   }, [currentAp?.id]);
   const awaitingBidEcho = lastSubmittedAmount != null && (highBid?.amount ?? 0) < lastSubmittedAmount;
 
+  // Cooling-off period after the last bid. The database refuses a bid inside this
+  // window (that is the rule that actually binds); this only makes the wait
+  // visible, so a manager sees a countdown instead of tapping into an error.
+  // It compares a server timestamp against the browser clock, exactly as the
+  // round timer above already does, so a skewed clock shifts it slightly --
+  // harmless, because the server decides.
+  const bidGapSeconds = (auction.min_bid_gap_seconds as number) ?? 0;
+  const gapMsLeft =
+    highBid?.created_at && bidGapSeconds > 0
+      ? Math.max(0, new Date(highBid.created_at).getTime() + bidGapSeconds * 1000 - now)
+      : 0;
+  const gapLocked = gapMsLeft > 0;
+  const gapSecondsLeft = Math.ceil(gapMsLeft / 1000);
+
   const placeBid = useMutation({
     mutationFn: async () => {
       if (!currentAp || !selectedTeam) throw new Error("Pick a team first");
@@ -857,7 +871,7 @@ function LiveRoom({
   const unclassifiedBlocked = quotaEnabled && p?.malayali == null;
   const quotaCeilingBlocked = quotaEnabled && p?.malayali === "non_malayali" && remainingNonMalayali === 0;
   const quotaReserveBlocked = quotaEnabled && p?.malayali !== "non_malayali" && slotsAfterBid < remainingNonMalayali;
-  const bidBlocked = atMaxCap || wouldBreakReserve || unclassifiedBlocked || quotaCeilingBlocked || quotaReserveBlocked;
+  const bidBlocked = atMaxCap || wouldBreakReserve || unclassifiedBlocked || quotaCeilingBlocked || quotaReserveBlocked || gapLocked;
   const blockedReason = atMaxCap
     ? `Squad full (${maxPlayers} players)`
     : unclassifiedBlocked
@@ -869,6 +883,9 @@ function LiveRoom({
           : wouldBreakReserve
       ? `Reserve ${reserveNeeded.toLocaleString()} for ${Math.max(0, minPlayers - nextN)} more`
       : null;
+  // Takes precedence over the standing reasons above: the gap clears in seconds,
+  // so it is the one the manager can act on.
+  const bidReason = gapLocked ? `Another team just bid — ${gapSecondsLeft}s` : blockedReason;
 
   return (
     <div className="space-y-4">
@@ -959,7 +976,7 @@ function LiveRoom({
                 className="flex-1 h-14 text-base font-bold"
                 onClick={() => placeBid.mutate()}
                 disabled={placeBid.isPending || awaitingBidEcho || !selectedTeam || expired || isPaused || (leadingTeam?.team?.id === selectedTeam) || bidBlocked}
-                title={blockedReason ?? undefined}
+                title={bidReason ?? undefined}
               >
                 <Gavel className="h-4 w-4 mr-2" />
                 {isPaused
@@ -970,8 +987,8 @@ function LiveRoom({
                       ? "You're leading"
                       : placeBid.isPending || awaitingBidEcho
                         ? "Bidding…"
-                        : blockedReason
-                          ? blockedReason
+                        : bidReason
+                          ? bidReason
                           : `Bid ${nextAmount.toLocaleString()}`}
               </Button>
               {remaining != null && (
@@ -1008,8 +1025,8 @@ function LiveRoom({
                 const classificationBlocked = quotaEnabled && p?.malayali == null;
                 const ceilingBlocked = quotaEnabled && p?.malayali === "non_malayali" && teamRemaining === 0;
                 const placesBlocked = quotaEnabled && p?.malayali !== "non_malayali" && teamSlotsAfter < teamRemaining;
-                const disabled = alreadyLeading || full || short || reserveBlocked || classificationBlocked || ceilingBlocked || placesBlocked || offlineBid.isPending;
-                const reason = alreadyLeading ? "Leading" : full ? "Squad full" : short ? "No budget" : classificationBlocked ? "Classification blank" : ceilingBlocked ? "Non-Malayali limit" : placesBlocked ? "Non-Malayali places due" : reserveBlocked ? "Reserve needed" : null;
+                const disabled = alreadyLeading || full || short || reserveBlocked || classificationBlocked || ceilingBlocked || placesBlocked || gapLocked || offlineBid.isPending;
+                const reason = gapLocked ? `Wait ${gapSecondsLeft}s` : alreadyLeading ? "Leading" : full ? "Squad full" : short ? "No budget" : classificationBlocked ? "Classification blank" : ceilingBlocked ? "Non-Malayali limit" : placesBlocked ? "Non-Malayali places due" : reserveBlocked ? "Reserve needed" : null;
                 return (
                   <Button
                     key={at.id}

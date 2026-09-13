@@ -30,6 +30,7 @@ type WizardState = {
   team_budget: number;
   baseline_price: number;
   round_closure_seconds: number;
+  min_bid_gap_seconds: number;
   min_players_per_team: number;
   max_players_per_team: number;
   bid_rules: BidRule[];
@@ -158,6 +159,7 @@ export function AuctionWizardDialog({
       team_budget: 100000,
       baseline_price: 500,
       round_closure_seconds: 15,
+      min_bid_gap_seconds: 3,
       min_players_per_team: 10,
       max_players_per_team: 12,
       bid_rules: DEFAULT_BID_RULES,
@@ -227,6 +229,8 @@ export function AuctionWizardDialog({
       team_budget: auction.team_budget,
       baseline_price: auction.baseline_price,
       round_closure_seconds: auction.round_closure_seconds,
+      // Falls back to 3 for auctions created before the column existed.
+      min_bid_gap_seconds: auction.min_bid_gap_seconds ?? 3,
       min_players_per_team: auction.min_players_per_team,
       max_players_per_team: auction.max_players_per_team,
       bid_rules: rules.length ? rules : DEFAULT_BID_RULES,
@@ -285,6 +289,9 @@ export function AuctionWizardDialog({
         team_budget: state.team_budget,
         baseline_price: state.baseline_price,
         round_closure_seconds: state.method === "offline" ? 0 : state.round_closure_seconds,
+        // Kept for offline too: there it stops the auctioneer double-tapping a
+        // team button, which registers two bids and skips a rung.
+        min_bid_gap_seconds: state.min_bid_gap_seconds,
         min_players_per_team: state.min_players_per_team,
         max_players_per_team: state.max_players_per_team,
         non_malayali_rule_enabled: state.nonMalayaliRuleEnabled,
@@ -391,7 +398,7 @@ export function AuctionWizardDialog({
     if (s === 1) return (
       state.team_budget > 0 &&
       state.baseline_price > 0 &&
-      (state.method === "offline" || state.round_closure_seconds > 0) &&
+      (state.method === "offline" || state.round_closure_seconds > 0) && state.min_bid_gap_seconds >= 0 && state.min_bid_gap_seconds <= 60 &&
       state.min_players_per_team >= 0 &&
       state.max_players_per_team >= 1 &&
       state.min_players_per_team <= state.max_players_per_team
@@ -577,6 +584,7 @@ function StepMoney({ state, setState }: { state: WizardState; setState: Setter }
         {state.method === "online" && (
           <div><Label>Round closure (sec)</Label><Input type="number" className={NO_SPIN} value={state.round_closure_seconds} onChange={(e) => setState((s) => ({ ...s, round_closure_seconds: Number(e.target.value) }))} /></div>
         )}
+        <div><Label>Min gap between bids (sec)</Label><Input type="number" className={NO_SPIN} value={state.min_bid_gap_seconds} onChange={(e) => setState((s) => ({ ...s, min_bid_gap_seconds: Number(e.target.value) }))} /><p className="text-xs text-muted-foreground mt-1">0 allows back-to-back bids. Max 60.</p></div>
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div><Label>Min players / team</Label><Input type="number" className={NO_SPIN} value={state.min_players_per_team} onChange={(e) => setState((s) => ({ ...s, min_players_per_team: Number(e.target.value) }))} /></div>
@@ -824,6 +832,7 @@ function StepReview({ state, teams, players }: { state: WizardState; teams: Team
       <Row label="Team budget" value={state.team_budget.toLocaleString()} />
       <Row label="Baseline" value={state.baseline_price.toLocaleString()} />
       {state.method === "online" && <Row label="Round closure" value={`${state.round_closure_seconds}s`} />}
+      <Row label="Min gap between bids" value={state.min_bid_gap_seconds > 0 ? `${state.min_bid_gap_seconds}s` : "none"} />
       <Row label="Squad size" value={`min ${state.min_players_per_team} · max ${state.max_players_per_team}`} />
       <Row label="Bid rules" value={`${state.bid_rules.length} tiers`} />
       <Row label="Teams" value={`${teamNames.length} · ${teamNames.slice(0, 4).join(", ")}${teamNames.length > 4 ? "…" : ""}`} />
