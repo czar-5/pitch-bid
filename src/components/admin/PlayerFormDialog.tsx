@@ -20,6 +20,7 @@ import { ImageUploader } from "./ImageUploader";
 const schema = z.object({
   name: z.string().min(1).max(120),
   role: z.enum(["batter", "bowler", "allrounder", "batting_allrounder", "bowling_allrounder", "wicket_keeper", "none"]),
+  malayali: z.enum(["malayali", "non_malayali", "blank"]),
   batting_style: z.string().max(60).nullable().optional(),
   bowling_style: z.string().max(60).nullable().optional(),
   matches: z.coerce.number().int().min(0),
@@ -37,6 +38,7 @@ type Player = {
   id: string;
   name: string;
   role: "batter" | "bowler" | "allrounder" | "batting_allrounder" | "bowling_allrounder" | "wicket_keeper" | "none";
+  malayali: "malayali" | "non_malayali" | null;
   batting_style: string | null;
   bowling_style: string | null;
   matches: number;
@@ -60,6 +62,7 @@ export function PlayerFormDialog({ trigger, player }: PlayerFormDialogProps) {
   const defaults = (): FormValues => ({
     name: player?.name ?? "",
     role: player?.role ?? "batter",
+    malayali: player?.malayali ?? "blank",
     batting_style: player?.batting_style ?? "",
     bowling_style: player?.bowling_style ?? "",
     matches: player?.matches ?? 0,
@@ -85,6 +88,7 @@ export function PlayerFormDialog({ trigger, player }: PlayerFormDialogProps) {
     mutationFn: async (values: FormValues) => {
       const payload = {
         ...values,
+        malayali: values.malayali === "blank" ? null : values.malayali,
         batting_style: values.batting_style?.trim() || null,
         bowling_style: values.bowling_style?.trim() || null,
         cric_heroes_link: values.cric_heroes_link?.trim() || null,
@@ -134,6 +138,20 @@ export function PlayerFormDialog({ trigger, player }: PlayerFormDialogProps) {
                   </Select>
                   <FormMessage />
                 </FormItem>
+            )} />
+            <FormField control={form.control} name="malayali" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Malayali classification</FormLabel>
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                  <SelectContent>
+                    <SelectItem value="blank">— (blank)</SelectItem>
+                    <SelectItem value="malayali">Malayali</SelectItem>
+                    <SelectItem value="non_malayali">Non-Malayali</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
             )} />
             <div className="grid grid-cols-2 gap-3">
               <FormField control={form.control} name="batting_style" render={({ field }) => (

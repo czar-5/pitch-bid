@@ -38,6 +38,10 @@ const roleLabel: Record<string, string> = {
   wicket_keeper: "Wicket Keeper",
   none: "—",
 };
+const malayaliLabel: Record<string, string> = {
+  malayali: "Malayali",
+  non_malayali: "Non-Malayali",
+};
 
 function PlayersPage() {
   const { isAdmin } = useAuth();
@@ -56,7 +60,7 @@ function PlayersPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("players")
-        .select("id,name,role,batting_style,bowling_style,matches,runs,wickets,batting_avg,batting_sr,bowling_economy,photo,cric_heroes_link")
+        .select("id,name,role,malayali,batting_style,bowling_style,matches,runs,wickets,batting_avg,batting_sr,bowling_economy,photo,cric_heroes_link")
         .order("name");
       if (error) throw error;
       return data;
@@ -121,6 +125,9 @@ function PlayersPage() {
                 {roleLabel[p.role] ?? p.role}
                 {p.batting_style ? ` · ${p.batting_style}` : ""}
                 {p.bowling_style ? ` · ${p.bowling_style}` : ""}
+              </p>
+              <p className="mt-1 text-[11px] font-medium text-muted-foreground">
+                {p.malayali ? malayaliLabel[p.malayali] : "Classification blank"}
               </p>
               <p className="mt-0.5 text-[11px] text-muted-foreground/80 font-mono">
                 M {p.matches} · R {p.runs} · Avg {Number(p.batting_avg).toFixed(2)} · SR {Number(p.batting_sr).toFixed(2)} · W {p.wickets} · Econ {Number(p.bowling_economy).toFixed(2)}

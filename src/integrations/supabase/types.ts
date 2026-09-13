@@ -150,6 +150,8 @@ export type Database = {
           method: Database["public"]["Enums"]["auction_method"]
           min_players_per_team: number
           name: string
+          non_malayali_players_per_team: number
+          non_malayali_rule_enabled: boolean
           round_closure_seconds: number
           scheduled_at: string
           status: Database["public"]["Enums"]["auction_status"]
@@ -169,6 +171,8 @@ export type Database = {
           method?: Database["public"]["Enums"]["auction_method"]
           min_players_per_team?: number
           name: string
+          non_malayali_players_per_team?: number
+          non_malayali_rule_enabled?: boolean
           round_closure_seconds?: number
           scheduled_at?: string
           status?: Database["public"]["Enums"]["auction_status"]
@@ -188,6 +192,8 @@ export type Database = {
           method?: Database["public"]["Enums"]["auction_method"]
           min_players_per_team?: number
           name?: string
+          non_malayali_players_per_team?: number
+          non_malayali_rule_enabled?: boolean
           round_closure_seconds?: number
           scheduled_at?: string
           status?: Database["public"]["Enums"]["auction_status"]
@@ -248,6 +254,7 @@ export type Database = {
           created_at: string
           cric_heroes_link: string | null
           id: string
+          malayali: Database["public"]["Enums"]["malayali_status"] | null
           matches: number
           name: string
           photo: string | null
@@ -264,6 +271,7 @@ export type Database = {
           created_at?: string
           cric_heroes_link?: string | null
           id?: string
+          malayali?: Database["public"]["Enums"]["malayali_status"] | null
           matches?: number
           name: string
           photo?: string | null
@@ -280,6 +288,7 @@ export type Database = {
           created_at?: string
           cric_heroes_link?: string | null
           id?: string
+          malayali?: Database["public"]["Enums"]["malayali_status"] | null
           matches?: number
           name?: string
           photo?: string | null
@@ -450,6 +459,10 @@ export type Database = {
       skip_current: { Args: { _auction_id: string }; Returns: undefined }
       start_auction: { Args: { _auction_id: string }; Returns: undefined }
       undo_last_bid: { Args: { _auction_id: string }; Returns: undefined }
+      validate_non_malayali_auction: {
+        Args: { _auction_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role: "admin" | "manager" | "co_manager" | "viewer"
@@ -462,6 +475,7 @@ export type Database = {
         | "paused"
         | "completed"
         | "archived"
+      malayali_status: "malayali" | "non_malayali"
       membership_role: "manager" | "co_manager"
       player_role:
         | "batter"
@@ -609,6 +623,7 @@ export const Constants = {
         "completed",
         "archived",
       ],
+      malayali_status: ["malayali", "non_malayali"],
       membership_role: ["manager", "co_manager"],
       player_role: [
         "batter",
