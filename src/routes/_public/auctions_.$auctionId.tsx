@@ -342,12 +342,6 @@ function AuctionDetail() {
           };
           return (
             <div className="space-y-4">
-              {preAssigned.length > 0 && (
-              <div>
-                <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-2">Captains &amp; Icons ({preAssigned.length})</p>
-                <div className="rounded-xl border border-border bg-card divide-y divide-border">{preAssigned.map(renderRow)}</div>
-              </div>
-              )}
               <div>
                 <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-2">Available ({unsold.length})</p>
                 <div className="rounded-xl border border-border bg-card divide-y divide-border">
@@ -364,6 +358,12 @@ function AuctionDetail() {
                     : sold.map(renderRow)}
                 </div>
               </div>
+              {preAssigned.length > 0 && (
+              <div>
+                <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-2">Captains &amp; Icons ({preAssigned.length})</p>
+                <div className="rounded-xl border border-border bg-card divide-y divide-border">{preAssigned.map(renderRow)}</div>
+              </div>
+              )}
             </div>
           );
         })()}
@@ -1277,6 +1277,14 @@ function TeamsTabs({
       arr.push(r);
       map.set(r.sold_team_id, arr);
     }
+    // The query carries no ORDER BY, so rows arrive in whatever order Postgres
+    // finds them on disk -- which is why a squad read as randomly ordered. Rank
+    // puts the captain first and that team's icons next; everyone bought at
+    // auction follows, and name orders within each rank. Sorting each team's own
+    // array is safe: the arrays are built here, not React Query's cached rows.
+    const rank = (r: any) => (r.is_captain ? 0 : r.is_icon ? 1 : 2);
+    for (const arr of map.values())
+      arr.sort((a, b) => rank(a) - rank(b) || (a.player?.name ?? "").localeCompare(b.player?.name ?? ""));
     return map;
   }, [rosterQ.data]);
 
