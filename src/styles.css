@@ -146,3 +146,67 @@
     color: var(--color-foreground);
   }
 }
+
+/*
+ * The sale celebration (src/components/auction/SoldOverlay.tsx).
+ *
+ * tw-animate-css covers the card's fade-and-zoom entrance, but the stamp needs its own
+ * curve: it is deliberately late (600ms delay) so the photo, the buying team and the
+ * price all register before the word lands on top of them. It drops in oversized and
+ * steeply rotated, undershoots, kicks back past its resting size, then settles -- the
+ * shape of something hitting a surface rather than a sliding in.
+ *
+ * `forwards` holds the final frame; without it the stamp would snap back to invisible
+ * and sit blank for the rest of the hold.
+ */
+@keyframes sold-stamp {
+  0% {
+    opacity: 0;
+    transform: scale(2.8) rotate(-24deg);
+  }
+  55% {
+    opacity: 1;
+    transform: scale(0.92) rotate(-8deg);
+  }
+  70% {
+    transform: scale(1.07) rotate(-11deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(-9deg);
+  }
+}
+
+.animate-sold-stamp {
+  opacity: 0;
+  animation: sold-stamp 700ms cubic-bezier(0.2, 0.9, 0.3, 1.15) 600ms forwards;
+}
+
+/* A single bloom of the mint gradient behind the card, on the same beat as the stamp. */
+@keyframes sold-flash {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  12% {
+    opacity: 0.5;
+  }
+}
+
+.animate-sold-flash {
+  opacity: 0;
+  animation: sold-flash 900ms ease-out 600ms 1;
+}
+
+/* Same information, no motion: the stamp fades in where it will rest, nothing flashes. */
+@media (prefers-reduced-motion: reduce) {
+  .animate-sold-stamp {
+    animation: none;
+    opacity: 1;
+    transform: rotate(-9deg);
+  }
+
+  .animate-sold-flash {
+    animation: none;
+  }
+}

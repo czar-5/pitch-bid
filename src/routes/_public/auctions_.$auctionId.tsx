@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Calendar, Coins, Gavel, Play, ChevronsRight, Trash2, Users, Timer, CheckCircle2, Circle, StopCircle, AlertTriangle, Radio, Pause, RotateCcw, Eraser, ExternalLink, Undo2 } from "lucide-react";
 import { format } from "date-fns";
@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { roleLabel, playerMetaLine } from "@/lib/player-labels";
 import { Button } from "@/components/ui/button";
+import { SoldOverlay, type SoldCelebration } from "@/components/auction/SoldOverlay";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
@@ -162,6 +163,58 @@ function AuctionDetail() {
     return m;
   }, [playersQ.data]);
 
+  // Team id -> team row, for anywhere a sold player has to be shown next to its buyer.
+  // Above the early returns with the other memos, since the sale overlay below needs it.
+  const teamById = useMemo(
+    () => new Map<string, any>((teamsQ.data ?? []).map((t: any) => [t.team?.id, t.team])),
+    [teamsQ.data],
+  );
+
+  // The sale celebration.
+  //
+  // Nothing in the data says a sale *just* happened. last_finalized_player_id is a stored
+  // column, so someone who reloads the page during the intermission reads exactly what
+  // someone who watched the hammer fall reads -- replaying the overlay for them would be
+  // wrong. What separates the two is having seen the previous value. seenFinalizedId
+  // starts undefined, takes its baseline silently on the first render that has data, and
+  // only a change after that counts as a sale this browser witnessed. That test is exact
+  // and needs no clock: comparing sold_at against Date.now() would swallow a real sale on
+  // a device whose clock is off.
+  const seenFinalizedId = useRef<string | null | undefined>(undefined);
+  const [celebration, setCelebration] = useState<SoldCelebration | null>(null);
+
+  useEffect(() => {
+    const rows = playersQ.data;
+    if (!auctionQ.data || !rows || !teamsQ.data) return;
+    const finalizedId = auctionQ.data.last_finalized_player_id ?? null;
+
+    if (seenFinalizedId.current === undefined) {
+      seenFinalizedId.current = finalizedId;
+      return;
+    }
+    if (finalizedId === seenFinalizedId.current) return;
+
+    const ap = finalizedId ? rows.find((r) => r.id === finalizedId) : null;
+    // The auction row and the player rows are separate queries that refetch
+    // independently, so the new id can land a beat before the row it names. Leave the
+    // baseline alone and wait -- this effect runs again when the rows arrive.
+    if (finalizedId && !ap) return;
+    seenFinalizedId.current = finalizedId;
+
+    // An unsold finalize falls straight through to the intermission screen, as before.
+    if (!ap || ap.status !== "sold" || !ap.sold_team_id) return;
+    const team = teamById.get(ap.sold_team_id);
+    setCelebration({
+      id: ap.id,
+      playerName: ap.player?.name ?? "",
+      playerPhoto: ap.player?.photo ?? null,
+      teamName: team?.name ?? "",
+      teamLogo: team?.logo_url ?? null,
+      teamColor: team?.primary_color ?? null,
+      amount: ap.sold_price ?? 0,
+    });
+  }, [auctionQ.data, playersQ.data, teamsQ.data, teamById]);
+
   if (auctionQ.isLoading) return <p className="text-muted-foreground">Loading…</p>;
   if (!auctionQ.data) return <p className="text-muted-foreground">Auction not found.</p>;
   const a = auctionQ.data;
@@ -181,6 +234,10 @@ function AuctionDetail() {
 
   return (
     <div className="space-y-6">
+      {/* Top level, so it covers the live room, the intermission screen and the chrome
+          alike -- the auctioneer sees the same announcement the room does. */}
+      {celebration && <SoldOverlay sale={celebration} onDone={() => setCelebration(null)} />}
+
       <Button variant="ghost" size="sm" onClick={() => navigate({ to: "/auctions" })}>
         <ArrowLeft className="h-4 w-4 mr-1" /> All auctions
       </Button>
@@ -298,7 +355,6 @@ function AuctionDetail() {
         </h2>
         {(() => {
           const all = playersQ.data ?? [];
-          const teamById = new Map((teamsQ.data ?? []).map((t: any) => [t.team?.id, t.team]));
           // Three sections, three rules. Available inherits the query's alphabetical
           // order; the other two sort here, since one query carries one ORDER BY. Both
           // sort the filter() result, not all -- sort() mutates, and all is the cache.
@@ -307,7 +363,7 @@ function AuctionDetail() {
           // into real sales would scatter each team's captain away from its icons. Sold
           // itself goes in the order the hammer fell, by the sold_at that
           // sell_current/finalize_current now stamps; name only breaks an exact tie.
-          const preAssigned = all.filter((ap) => ap.is_captain || ap.is_icon).sort((a, b) => (teamById.get(a.sold_team_id)?.name ?? "").localeCompare(teamById.get(b.sold_team_id)?.name ?? "") || Number(b.is_captain) - Number(a.is_captain) || (a.player?.name ?? "").localeCompare(b.player?.name ?? ""));
+          const preAssigned = all.filter((ap) => ap.is_captain || ap.is_icon).sort((a, b) => (teamById.get(a.sold_team_id ?? "")?.name ?? "").localeCompare(teamById.get(b.sold_team_id ?? "")?.name ?? "") || Number(b.is_captain) - Number(a.is_captain) || (a.player?.name ?? "").localeCompare(b.player?.name ?? ""));
           const sold = all.filter((ap) => ap.status === "sold" && !ap.is_captain && !ap.is_icon).sort((a, b) => (a.sold_at ?? "").localeCompare(b.sold_at ?? "") || (a.player?.name ?? "").localeCompare(b.player?.name ?? ""));
           const unsold = all.filter((ap) => ap.status !== "sold");
           const renderRow = (ap: any) => {
