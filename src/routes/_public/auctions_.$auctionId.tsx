@@ -716,6 +716,9 @@ function LiveRoom({
   // (or the round changes / a new high bid arrives via realtime).
   const [lastSubmittedAmount, setLastSubmittedAmount] = useState<number | null>(null);
 
+  // Set only when the server refuses a bid for being too soon -- see onBidError below.
+  const [gapUntil, setGapUntil] = useState<number | null>(null);
+
   // countdown
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
@@ -746,6 +749,7 @@ function LiveRoom({
   }, [highBid?.amount, lastSubmittedAmount]);
   useEffect(() => {
     setLastSubmittedAmount(null);
+    setGapUntil(null);
   }, [currentAp?.id]);
   const awaitingBidEcho = lastSubmittedAmount != null && (highBid?.amount ?? 0) < lastSubmittedAmount;
 
@@ -756,12 +760,30 @@ function LiveRoom({
   // round timer above already does, so a skewed clock shifts it slightly --
   // harmless, because the server decides.
   const bidGapSeconds = (auction.min_bid_gap_seconds as number) ?? 0;
-  const gapMsLeft =
+  // gapUntil is folded in as a maximum, never a replacement: a refusal can only
+  // extend the wait the high bid already implies, never cut it short.
+  const gapMsLeft = Math.max(
     highBid?.created_at && bidGapSeconds > 0
       ? Math.max(0, new Date(highBid.created_at).getTime() + bidGapSeconds * 1000 - now)
-      : 0;
+      : 0,
+    gapUntil != null ? Math.max(0, gapUntil - now) : 0,
+  );
   const gapLocked = gapMsLeft > 0;
   const gapSecondsLeft = Math.ceil(gapMsLeft / 1000);
+
+  // The countdown above can only start once this browser has heard about the rival's
+  // bid, which takes a moment to arrive. A tap inside that moment sees a live button
+  // and is refused by the server -- the simultaneous tap the rule exists to stop.
+  // Start the same countdown from the refusal, so the manager gets the timer they
+  // would have seen, rather than the database's own wording and a button still lit.
+  const onBidError = (e: Error) => {
+    if (e.message.includes("bids must be")) {
+      setGapUntil(Date.now() + bidGapSeconds * 1000);
+      toast.error(`Another team just bid. Wait ${bidGapSeconds}s.`);
+      return;
+    }
+    toast.error(e.message);
+  };
 
   const placeBid = useMutation({
     mutationFn: async () => {
@@ -774,7 +796,7 @@ function LiveRoom({
     },
     onError: (e: Error) => {
       setLastSubmittedAmount(null);
-      toast.error(e.message);
+      onBidError(e);
     },
   });
 
@@ -842,7 +864,7 @@ function LiveRoom({
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["live-bids", auctionId] }),
-    onError: (e: Error) => toast.error(e.message),
+    onError: onBidError,
   });
   const undoBid = useMutation({
     mutationFn: async () => {
@@ -1045,7 +1067,9 @@ function LiveRoom({
                 const ceilingBlocked = quotaEnabled && p?.malayali === "non_malayali" && teamRemaining === 0;
                 const placesBlocked = quotaEnabled && p?.malayali !== "non_malayali" && teamSlotsAfter < teamRemaining;
                 const disabled = alreadyLeading || full || short || reserveBlocked || classificationBlocked || ceilingBlocked || placesBlocked || gapLocked || offlineBid.isPending;
-                const reason = gapLocked ? `Wait ${gapSecondsLeft}s` : alreadyLeading ? "Leading" : full ? "Squad full" : short ? "No budget" : classificationBlocked ? "Classification blank" : ceilingBlocked ? "Non-Malayali limit" : placesBlocked ? "Non-Malayali places due" : reserveBlocked ? "Reserve needed" : null;
+                // "Leading" first: that team is blocked until someone outbids it, so the
+                // gap countdown would only flash a wait that never actually applies to it.
+                const reason = alreadyLeading ? "Leading" : gapLocked ? `Wait ${gapSecondsLeft}s` : full ? "Squad full" : short ? "No budget" : classificationBlocked ? "Classification blank" : ceilingBlocked ? "Non-Malayali limit" : placesBlocked ? "Non-Malayali places due" : reserveBlocked ? "Reserve needed" : null;
                 return (
                   <Button
                     key={at.id}
