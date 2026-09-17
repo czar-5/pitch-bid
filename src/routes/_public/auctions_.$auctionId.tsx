@@ -60,9 +60,13 @@ function AuctionDetail() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("auction_players")
-        .select("id,status,sold_price,sold_team_id,is_captain,is_icon,round_ends_at,paused_remaining_seconds,player:players(id,name,role,malayali,photo,batting_style,bowling_style,matches,runs,wickets,batting_avg,batting_sr,bowling_economy,cric_heroes_link)")
+        .select("id,status,sold_price,sold_team_id,sold_at,is_captain,is_icon,round_ends_at,paused_remaining_seconds,player:players(id,name,role,malayali,photo,batting_style,bowling_style,matches,runs,wickets,batting_avg,batting_sr,bowling_economy,cric_heroes_link)")
         .eq("auction_id", auctionId)
-        .order("name", { foreignTable: "players", ascending: true });
+        // Sorts the parent rows by the embedded player's name. The embed ALIAS goes in
+        // the parentheses -- player, from player:players(...) above. Naming the table,
+        // or using the foreignTable option, sorts rows *inside* an embedded list and is
+        // silently ignored for a to-one embed: that is why this panel rendered unsorted.
+        .order("player(name)", { ascending: true });
       if (error) throw error;
       return data;
     },
@@ -294,9 +298,18 @@ function AuctionDetail() {
         </h2>
         {(() => {
           const all = playersQ.data ?? [];
-          const sold = all.filter((ap) => ap.status === "sold");
-          const unsold = all.filter((ap) => ap.status !== "sold");
           const teamById = new Map((teamsQ.data ?? []).map((t: any) => [t.team?.id, t.team]));
+          // Three sections, three rules. Available inherits the query's alphabetical
+          // order; the other two sort here, since one query carries one ORDER BY. Both
+          // sort the filter() result, not all -- sort() mutates, and all is the cache.
+          // Captains and icons are inserted pre-sold at creation and never bid on, so
+          // they get their own section: Sold is the wrong word for them, and mixing them
+          // into real sales would scatter each team's captain away from its icons. Sold
+          // itself goes in the order the hammer fell, by the sold_at that
+          // sell_current/finalize_current now stamps; name only breaks an exact tie.
+          const preAssigned = all.filter((ap) => ap.is_captain || ap.is_icon).sort((a, b) => (teamById.get(a.sold_team_id)?.name ?? "").localeCompare(teamById.get(b.sold_team_id)?.name ?? "") || Number(b.is_captain) - Number(a.is_captain) || (a.player?.name ?? "").localeCompare(b.player?.name ?? ""));
+          const sold = all.filter((ap) => ap.status === "sold" && !ap.is_captain && !ap.is_icon).sort((a, b) => (a.sold_at ?? "").localeCompare(b.sold_at ?? "") || (a.player?.name ?? "").localeCompare(b.player?.name ?? ""));
+          const unsold = all.filter((ap) => ap.status !== "sold");
           const renderRow = (ap: any) => {
             const team = ap.sold_team_id ? teamById.get(ap.sold_team_id) : null;
             return (
@@ -323,12 +336,18 @@ function AuctionDetail() {
                       : team.name.slice(0, 2).toUpperCase()}
                   </div>
                 )}
-                <span className="text-xs rounded-full bg-muted px-2 py-0.5 capitalize">{ap.status}</span>
+                {!ap.is_captain && !ap.is_icon && <span className="text-xs rounded-full bg-muted px-2 py-0.5 capitalize">{ap.status}</span>}
               </div>
             );
           };
           return (
             <div className="space-y-4">
+              {preAssigned.length > 0 && (
+              <div>
+                <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-2">Captains &amp; Icons ({preAssigned.length})</p>
+                <div className="rounded-xl border border-border bg-card divide-y divide-border">{preAssigned.map(renderRow)}</div>
+              </div>
+              )}
               <div>
                 <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mb-2">Available ({unsold.length})</p>
                 <div className="rounded-xl border border-border bg-card divide-y divide-border">

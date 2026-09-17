@@ -26,6 +26,7 @@ export type Database = {
           paused_remaining_seconds: number | null
           player_id: string
           round_ends_at: string | null
+          sold_at: string | null
           sold_price: number | null
           sold_team_id: string | null
           status: Database["public"]["Enums"]["auction_player_status"]
@@ -41,6 +42,7 @@ export type Database = {
           paused_remaining_seconds?: number | null
           player_id: string
           round_ends_at?: string | null
+          sold_at?: string | null
           sold_price?: number | null
           sold_team_id?: string | null
           status?: Database["public"]["Enums"]["auction_player_status"]
@@ -56,6 +58,7 @@ export type Database = {
           paused_remaining_seconds?: number | null
           player_id?: string
           round_ends_at?: string | null
+          sold_at?: string | null
           sold_price?: number | null
           sold_team_id?: string | null
           status?: Database["public"]["Enums"]["auction_player_status"]
