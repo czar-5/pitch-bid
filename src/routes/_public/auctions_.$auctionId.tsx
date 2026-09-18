@@ -196,9 +196,10 @@ function AuctionDetail() {
 
     const ap = finalizedId ? rows.find((r) => r.id === finalizedId) : null;
     // The auction row and the player rows are separate queries that refetch
-    // independently, so the new id can land a beat before the row it names. Leave the
-    // baseline alone and wait -- this effect runs again when the rows arrive.
-    if (finalizedId && !ap) return;
+    // independently, so the new id -- and even the row it names -- can land a beat
+    // before that row's status has caught up from "live" to "sold"/"unsold". Leave the
+    // baseline alone and wait in both cases; this effect runs again when the row settles.
+    if (finalizedId && (!ap || ap.status === "live")) return;
     seenFinalizedId.current = finalizedId;
 
     // An unsold finalize falls straight through to the intermission screen, as before.
