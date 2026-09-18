@@ -1003,6 +1003,16 @@ function LiveRoom({
                 <p className="text-sm text-muted-foreground mt-1">
                   {playerMetaLine(roleLabel(p?.role), p?.batting_style, p?.bowling_style)}
                 </p>
+                {p?.cric_heroes_link && (
+                  <a
+                    href={p.cric_heroes_link}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-1 inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                  >
+                    CricHeroes <ExternalLink className="h-3 w-3" />
+                  </a>
+                )}
               </div>
               {/* Timer is rendered next to the bid button below so all decision info is in one place */}
             </div>
@@ -1293,6 +1303,16 @@ function IntermissionRoom({
               <p className="text-sm text-muted-foreground mt-1">
                 {playerMetaLine(roleLabel(p.role), p.batting_style, p.bowling_style)}
               </p>
+              {p.cric_heroes_link && (
+                <a
+                  href={p.cric_heroes_link}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-1 inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                >
+                  CricHeroes <ExternalLink className="h-3 w-3" />
+                </a>
+              )}
             </div>
           </div>
           <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
