@@ -426,6 +426,7 @@ export type Database = {
           batting_style: string
           bowling_economy: number
           bowling_style: string
+          cric_heroes_link: string
           matches: number
           name: string
           photo: string
